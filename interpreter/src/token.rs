@@ -1,5 +1,6 @@
 use crate::source::Location;
 
+#[derive(Debug)]
 pub struct Token {
     category: TokenCategory,
     start: Location,
@@ -16,6 +17,7 @@ impl Token {
     }
 }
 
+#[derive(Debug)]
 pub enum TokenCategory {
     // Single character tokens
     LeftParenthesis,
@@ -24,11 +26,11 @@ pub enum TokenCategory {
     RightBrace,
     Comma,
     Dot,
-    Minus,
     Plus,
-    Semicolon,
-    Slash,
+    Minus,
     Star,
+    Slash,
+    Semicolon,
 
     // Logical comparisons
     Bang,
@@ -58,6 +60,4 @@ pub enum TokenCategory {
     Fun,
     Return,
     Let,
-
-    EndOfFile,
 }
