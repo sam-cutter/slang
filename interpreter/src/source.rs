@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Location {
     pub index: usize,
@@ -5,12 +7,18 @@ pub struct Location {
     pub column: usize,
 }
 
+impl Display for Location {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({},{})", self.line, self.column)
+    }
+}
+
 impl Location {
     pub fn start() -> Self {
         Self {
             index: 0,
-            line: 0,
-            column: 0,
+            line: 1,
+            column: 1,
         }
     }
 }
@@ -45,7 +53,7 @@ impl Source {
 
             if character == '\n' {
                 self.location.line += 1;
-                self.location.column = 0;
+                self.location.column = 1;
             }
         }
 

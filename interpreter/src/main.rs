@@ -17,7 +17,7 @@ fn main() {
     "#,
     );
 
-    let tokens = lexer.lex();
+    let tokens = lexer.lex().unwrap();
 
     for token in tokens {
         println!("{:#?}", token);

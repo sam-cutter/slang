@@ -1,3 +1,5 @@
+use std::{error::Error, fmt::{Debug, Display}};
+
 use crate::{
     source::{Location, Source},
     token::{Token, TokenCategory},
@@ -9,6 +11,28 @@ pub struct Lexer {
     current_token_start: Location,
 }
 
+pub enum LexerError {
+    UnterminatedString(Location),
+}
+
+impl Display for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnterminatedString(location) => write!(f, "Unterminated string at position {}", location),
+        }
+    }
+}
+
+impl Debug for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnterminatedString(location ) => write!(f, "Unterminated string at position {}", location),
+        }
+    }
+}
+
+impl Error for LexerError {}
+
 impl Lexer {
     pub fn new(source: &str) -> Self {
         Self {
@@ -18,7 +42,7 @@ impl Lexer {
         }
     }
 
-    pub fn lex(&mut self) -> &Vec<Token> {
+    pub fn lex(&mut self) -> Result<&Vec<Token>, LexerError> {
         self.current_token_start = self.source.location();
 
         while let Some(character) = self.source.advance() {
@@ -45,7 +69,7 @@ impl Lexer {
 
                 ' ' | '\r' | '\t' | '\n' => (),
 
-                '"' => self.handle_string(),
+                '"' => self.handle_string()?,
 
                 character if character.is_ascii_digit() => self.handle_number(character),
 
@@ -59,7 +83,7 @@ impl Lexer {
             self.current_token_start = self.source.location();
         }
 
-        return &self.tokens;
+        return Ok(&self.tokens);
     }
 
     fn add_token(&mut self, category: TokenCategory) {
@@ -132,7 +156,7 @@ impl Lexer {
         }
     }
 
-    fn handle_string(&mut self) {
+    fn handle_string(&mut self) -> Result<(), LexerError> {
         let mut string = String::new();
 
         while let Some(character) = self.source.peek() {
@@ -145,13 +169,15 @@ impl Lexer {
         }
 
         if self.source.at_end() {
-            unimplemented!()
+            return Err(LexerError::UnterminatedString(self.current_token_start))
         }
 
         // Consume the enclosing "
         self.source.advance();
 
         self.add_token(TokenCategory::String(string));
+
+        Ok(())
     }
 
     fn handle_number(&mut self, first_digit: char) {
