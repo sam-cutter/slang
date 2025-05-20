@@ -63,7 +63,7 @@ impl Lexer {
         self.tokens.push(Token::new(
             category,
             self.current_token_start,
-            self.source.previous_location(),
+            self.source.location().index - self.current_token_start.index,
         ));
     }
 
@@ -184,6 +184,8 @@ impl Lexer {
             }
         }
 
-        self.add_token(TokenCategory::Number(number.parse().unwrap()))
+        let number: f64 = number.parse().unwrap();
+
+        self.add_token(TokenCategory::Number(number))
     }
 }

@@ -4,15 +4,15 @@ use crate::source::Location;
 pub struct Token {
     category: TokenCategory,
     start: Location,
-    end: Location,
+    length: usize,
 }
 
 impl Token {
-    pub fn new(category: TokenCategory, start: Location, end: Location) -> Self {
+    pub fn new(category: TokenCategory, start: Location, length: usize) -> Self {
         Self {
             category,
             start,
-            end,
+            length,
         }
     }
 }

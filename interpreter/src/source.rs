@@ -18,8 +18,6 @@ impl Location {
 pub struct Source {
     text: Vec<char>,
     location: Location,
-    // TODO: think about whether there's a better way to do this
-    previous_location: Location,
 }
 
 impl Source {
@@ -27,7 +25,6 @@ impl Source {
         Self {
             text: text.chars().collect(),
             location: Location::start(),
-            previous_location: Location::start(),
         }
     }
 
@@ -43,8 +40,6 @@ impl Source {
         let next = self.peek();
 
         if let Some(character) = next {
-            self.previous_location = self.location;
-
             self.location.index += 1;
             self.location.column += 1;
 
@@ -71,10 +66,6 @@ impl Source {
 
     pub fn location(&self) -> Location {
         self.location
-    }
-
-    pub fn previous_location(&self) -> Location {
-        self.previous_location
     }
 
     pub fn at_end(&self) -> bool {
