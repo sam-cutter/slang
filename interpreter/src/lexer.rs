@@ -49,7 +49,10 @@ impl Lexer {
 
                 character if character.is_ascii_digit() => self.handle_number(character),
 
-                // TODO: handle identifiers/keywords
+                character if character.is_ascii_alphabetic() || character == '_' => {
+                    self.handle_word(character)
+                }
+
                 _ => unimplemented!(),
             }
 
@@ -187,5 +190,35 @@ impl Lexer {
         let number: f64 = number.parse().unwrap();
 
         self.add_token(TokenCategory::Number(number))
+    }
+
+    fn handle_word(&mut self, first_character: char) {
+        let mut word = String::new();
+
+        word.push(first_character);
+
+        while let Some(character) = self.source.peek() {
+            if character.is_ascii_alphanumeric() || character == '_' {
+                word.push(character);
+                self.source.advance();
+            } else {
+                break;
+            }
+        }
+
+        match word.as_str() {
+            "true" => self.add_token(TokenCategory::Boolean(true)),
+            "false" => self.add_token(TokenCategory::Boolean(false)),
+
+            "if" => self.add_token(TokenCategory::If),
+            "else" => self.add_token(TokenCategory::Else),
+            "while" => self.add_token(TokenCategory::While),
+
+            "fun" => self.add_token(TokenCategory::Fun),
+            "return" => self.add_token(TokenCategory::Return),
+            "let" => self.add_token(TokenCategory::Let),
+
+            _ => self.add_token(TokenCategory::Identifier(word)),
+        }
     }
 }

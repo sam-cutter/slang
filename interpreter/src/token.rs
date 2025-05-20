@@ -50,12 +50,11 @@ pub enum TokenCategory {
     While,
 
     Identifier(String),
+
+    // Raw values
     String(String),
     Number(f64),
-
-    // Booleans
-    True,
-    False,
+    Boolean(bool),
 
     Fun,
     Return,
