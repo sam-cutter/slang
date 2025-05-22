@@ -6,7 +6,8 @@ mod token;
 
 fn main() {
     let mut lexer = Lexer::new(
-        r#"let name = "Sam";
+        r#"
+        let name = "Sam";
         greet(name);
 
         fun greet(name) {
@@ -14,6 +15,8 @@ fn main() {
         }
 
         if (1 < 2.0) || (true != false) return;
+
+        thing == null;
     "#,
     );
 

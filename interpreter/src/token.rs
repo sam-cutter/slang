@@ -51,10 +51,11 @@ pub enum TokenCategory {
 
     Identifier(String),
 
-    // Raw values
+    // Literals
     String(String),
     Number(f64),
     Boolean(bool),
+    Null,
 
     Fun,
     Return,
