@@ -21,14 +21,13 @@ pub enum LexerError {
         character: char,
         expected: Option<char>,
     },
-    EndOfFileReached(Option<char>),
 }
 
 impl Display for LexerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnterminatedString(location) => {
-                write!(f, "Unterminated string at position {}", location)
+                write!(f, "Unterminated string, beginning at {}", location)
             }
             Self::UnexpectedCharacter {
                 location,
@@ -36,22 +35,14 @@ impl Display for LexerError {
                 expected,
             } => write!(
                 f,
-                "Unexpected character: `{}` at position {}{}",
-                character,
+                "Unexpected character at position {}: `{}`{}",
                 location,
-                if let Some(expected) = expected {
-                    format!(" (expected `{}`)", expected)
-                } else {
-                    String::new()
+                character,
+                match expected {
+                    Some(expected) => format!(" (expected `{}`)", expected),
+                    None => String::new(),
                 }
             ),
-            Self::EndOfFileReached(expected) => {
-                if let Some(expected) = expected {
-                    write!(f, "End of file reached, but expected `{}`", expected)
-                } else {
-                    write!(f, "End of file reached.")
-                }
-            }
         }
     }
 }
@@ -73,131 +64,122 @@ impl Lexer {
         }
     }
 
-    pub fn lex(&mut self) -> Result<&Vec<Token>, LexerError> {
+    pub fn lex(&mut self) -> (&Vec<Token>, Vec<LexerError>) {
+        let mut errors = Vec::new();
+
         self.current_token_start = self.source.location();
 
         while let Some(character) = self.source.advance() {
-            let result: Result<(), LexerError> = match character {
-                // Single character tokens (not including Slash)
-                '(' => self.add_token(TokenCategory::LeftParenthesis),
-                ')' => self.add_token(TokenCategory::RightParenthesis),
-                '{' => self.add_token(TokenCategory::LeftBrace),
-                '}' => self.add_token(TokenCategory::RightBrace),
-                ',' => self.add_token(TokenCategory::Comma),
-                '.' => self.add_token(TokenCategory::Dot),
-                '+' => self.add_token(TokenCategory::Plus),
-                '-' => self.add_token(TokenCategory::Minus),
-                '*' => self.add_token(TokenCategory::Star),
-                '/' => self.handle_slash(),
-                ';' => self.add_token(TokenCategory::Semicolon),
+            let result = match character {
+                '(' => Ok(self.add_token(TokenCategory::LeftParenthesis)),
+                ')' => Ok(self.add_token(TokenCategory::RightParenthesis)),
+                '{' => Ok(self.add_token(TokenCategory::LeftBrace)),
+                '}' => Ok(self.add_token(TokenCategory::RightBrace)),
+                ',' => Ok(self.add_token(TokenCategory::Comma)),
+                '.' => Ok(self.add_token(TokenCategory::Dot)),
+                ';' => Ok(self.add_token(TokenCategory::Semicolon)),
 
-                '!' => self.handle_bang(),
-                '=' => self.handle_equal(),
-                '<' => self.handle_less(),
-                '>' => self.handle_greater(),
-                '&' => self.handle_ampersand(),
-                '|' => self.handle_pipe(),
+                // Arithmetic operators
+                '+' => Ok(self.add_token(TokenCategory::Plus)),
+                '-' => Ok(self.add_token(TokenCategory::Minus)),
+                '*' => Ok(self.add_token(TokenCategory::Star)),
+                '/' => Ok(self.handle_slash()),
 
+                // Logical and bitwise operators
+                '!' => Ok(self.handle_bang()),
+                '=' => Ok(self.handle_equal()),
+                '>' => Ok(self.handle_greater()),
+                '<' => Ok(self.handle_less()),
+                '&' => Ok(self.handle_ampersand()),
+                '|' => Ok(self.handle_pipe()),
+
+                // Literals (not including booleans or null)
+                '"' => self.handle_string(),
+                character if character.is_ascii_digit() => Ok(self.handle_number(character)),
+
+                // Identifiers and keywords
+                character if character.is_ascii_alphabetic() || character == '_' => {
+                    Ok(self.handle_word(character))
+                }
+
+                // Whitespace
                 ' ' | '\r' | '\t' | '\n' => Ok(()),
 
-                '"' => self.handle_string(),
-
-                character if character.is_ascii_digit() => self.handle_number(character),
-
-                character if character.is_ascii_alphabetic() || character == '_' => {
-                    self.handle_word(character)
-                }
-
-                _ => {
-                    return Err(LexerError::UnexpectedCharacter {
-                        location: self.current_token_start,
-                        character: character,
-                        expected: None
-                    });
-                }
+                // Unexpected characters
+                _ => Err(LexerError::UnexpectedCharacter {
+                    location: self.current_token_start,
+                    character: character,
+                    expected: None,
+                }),
             };
+
+            if let Err(error) = result {
+                errors.push(error);
+            }
 
             self.current_token_start = self.source.location();
         }
 
-        return Ok(&self.tokens);
+        (&self.tokens, errors)
     }
 
-    fn add_token(&mut self, category: TokenCategory) -> Result<(), LexerError> {
+    fn add_token(&mut self, category: TokenCategory) {
         self.tokens.push(Token::new(
             category,
             self.current_token_start,
             self.source.location().index - self.current_token_start.index,
         ));
-
-        Ok(())
     }
 
-    fn handle_bang(&mut self) -> Result<(), LexerError> {
+    fn handle_bang(&mut self) {
         if self.source.matches('=') {
-            return self.add_token(TokenCategory::BangEqual);
+            self.add_token(TokenCategory::BangEqual);
         } else {
-            return self.add_token(TokenCategory::Bang);
+            self.add_token(TokenCategory::Bang);
         }
     }
 
-    fn handle_equal(&mut self) -> Result<(), LexerError> {
+    fn handle_equal(&mut self) {
         if self.source.matches('=') {
-            return self.add_token(TokenCategory::DoubleEqual);
+            self.add_token(TokenCategory::DoubleEqual);
         } else {
-            return self.add_token(TokenCategory::Equal);
+            self.add_token(TokenCategory::Equal);
         }
     }
 
-    fn handle_less(&mut self) -> Result<(), LexerError> {
+    fn handle_less(&mut self) {
         if self.source.matches('=') {
-            return self.add_token(TokenCategory::LessEqual);
+            self.add_token(TokenCategory::LessEqual);
         } else {
-            return self.add_token(TokenCategory::Less);
+            self.add_token(TokenCategory::Less);
         }
     }
 
-    fn handle_greater(&mut self) -> Result<(), LexerError> {
+    fn handle_greater(&mut self) {
         if self.source.matches('=') {
-            return self.add_token(TokenCategory::GreaterEqual);
+            self.add_token(TokenCategory::GreaterEqual);
         } else {
-            return self.add_token(TokenCategory::Greater);
+            self.add_token(TokenCategory::Greater);
         }
     }
 
-    fn handle_ampersand(&mut self) -> Result<(), LexerError> {
-        if let Some(character) = self.source.peek() {
-            if character == '&' {
-                return self.add_token(TokenCategory::DoubleAmpersand);
-            } else {
-                return Err(LexerError::UnexpectedCharacter {
-                    location: self.source.location(),
-                    character: character,
-                    expected: Some('|'),
-                });
-            }
+    fn handle_ampersand(&mut self) {
+        if self.source.matches('&') {
+            self.add_token(TokenCategory::DoubleAmpersand);
         } else {
-            return Err(LexerError::EndOfFileReached(Some('|')));
+            self.add_token(TokenCategory::Ampersand);
         }
     }
 
-    fn handle_pipe(&mut self) -> Result<(), LexerError> {
-        if let Some(character) = self.source.peek() {
-            if character == '|' {
-                return self.add_token(TokenCategory::DoublePipe);
-            } else {
-                return Err(LexerError::UnexpectedCharacter {
-                    location: self.current_token_start,
-                    character: character,
-                    expected: Some('|'),
-                });
-            }
+    fn handle_pipe(&mut self) {
+        if self.source.matches('|') {
+            self.add_token(TokenCategory::DoublePipe);
         } else {
-            return Err(LexerError::EndOfFileReached(Some('|')));
+            self.add_token(TokenCategory::Pipe);
         }
     }
 
-    fn handle_slash(&mut self) -> Result<(), LexerError> {
+    fn handle_slash(&mut self) {
         if self.source.matches('/') {
             while self
                 .source
@@ -206,10 +188,8 @@ impl Lexer {
             {
                 self.source.advance();
             }
-
-            return Ok(());
         } else {
-            return self.add_token(TokenCategory::Slash);
+            self.add_token(TokenCategory::Slash);
         }
     }
 
@@ -237,7 +217,7 @@ impl Lexer {
         Ok(())
     }
 
-    fn handle_number(&mut self, first_digit: char) -> Result<(), LexerError> {
+    fn handle_number(&mut self, first_digit: char) {
         let mut number = String::new();
 
         number.push(first_digit);
@@ -272,10 +252,10 @@ impl Lexer {
 
         let number: f64 = number.parse().unwrap();
 
-        self.add_token(TokenCategory::Number(number))
+        self.add_token(TokenCategory::Number(number));
     }
 
-    fn handle_word(&mut self, first_character: char) -> Result<(), LexerError> {
+    fn handle_word(&mut self, first_character: char) {
         let mut word = String::new();
 
         word.push(first_character);
@@ -290,20 +270,21 @@ impl Lexer {
         }
 
         match word.as_str() {
+            // Literals
             "true" => self.add_token(TokenCategory::Boolean(true)),
             "false" => self.add_token(TokenCategory::Boolean(false)),
+            "null" => self.add_token(TokenCategory::Null),
 
+            // Control flow
             "if" => self.add_token(TokenCategory::If),
             "else" => self.add_token(TokenCategory::Else),
             "while" => self.add_token(TokenCategory::While),
-
-            "fun" => self.add_token(TokenCategory::Fun),
             "return" => self.add_token(TokenCategory::Return),
+
+            // Identifier related
             "let" => self.add_token(TokenCategory::Let),
-
-            "null" => self.add_token(TokenCategory::Null),
-
+            "fun" => self.add_token(TokenCategory::Fun),
             _ => self.add_token(TokenCategory::Identifier(word)),
-        }
+        };
     }
 }

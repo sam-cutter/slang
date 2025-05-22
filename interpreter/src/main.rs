@@ -8,21 +8,20 @@ fn main() {
     let mut lexer = Lexer::new(
         r#"
         let name = "Sam";
-        greet(name);
 
-        fun greet(name) {
-            print("Hello " + name);
-        }
+        print(name);
 
-        if (1 < 2.0) || (true != false) return;
-
-        thing == null;
+        print(1 == 2);
     "#,
     );
 
-    let tokens = lexer.lex().unwrap();
+    let (tokens, errors): (&Vec<token::Token>, Vec<lexer::LexerError>) = lexer.lex();
 
     for token in tokens {
-        println!("{:#?}", token);
+        println!("{:?}", token);
+    }
+
+    for error in errors {
+        println!("{}", error);
     }
 }

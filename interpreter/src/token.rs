@@ -19,20 +19,21 @@ impl Token {
 
 #[derive(Debug)]
 pub enum TokenCategory {
-    // Single character tokens
     LeftParenthesis,
     RightParenthesis,
     LeftBrace,
     RightBrace,
     Comma,
     Dot,
+    Semicolon,
+
+    // Arithmetic operators
     Plus,
     Minus,
     Star,
     Slash,
-    Semicolon,
 
-    // Logical comparisons
+    // Logical and bitwise operators
     Bang,
     BangEqual,
     Equal,
@@ -41,15 +42,10 @@ pub enum TokenCategory {
     GreaterEqual,
     Less,
     LessEqual,
+    Ampersand,
     DoubleAmpersand,
+    Pipe,
     DoublePipe,
-
-    // Control flow
-    If,
-    Else,
-    While,
-
-    Identifier(String),
 
     // Literals
     String(String),
@@ -57,7 +53,14 @@ pub enum TokenCategory {
     Boolean(bool),
     Null,
 
-    Fun,
+    // Control flow
+    If,
+    Else,
+    While,
     Return,
+
+    // Identifier related
     Let,
+    Fun,
+    Identifier(String),
 }
