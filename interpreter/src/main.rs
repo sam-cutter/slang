@@ -1,5 +1,6 @@
 use lexer::Lexer;
 
+mod expression;
 mod lexer;
 mod source;
 mod token;
