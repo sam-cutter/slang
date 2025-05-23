@@ -61,6 +61,6 @@ pub enum TokenCategory {
 
     // Identifier related
     Let,
-    Fun,
+    Fu,
     Identifier(String),
 }

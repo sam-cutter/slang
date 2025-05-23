@@ -1,11 +1,10 @@
-use std::{
-    error::Error,
-    fmt::{Debug, Display},
-};
-
 use crate::{
     source::{Location, Source},
     token::{Token, TokenCategory},
+};
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
 };
 
 pub struct Lexer {
@@ -16,6 +15,7 @@ pub struct Lexer {
 
 pub enum LexerError {
     UnterminatedString(Location),
+    UnterminatedBlockComment(Location),
     UnexpectedCharacter {
         location: Location,
         character: char,
@@ -28,6 +28,9 @@ impl Display for LexerError {
         match self {
             Self::UnterminatedString(location) => {
                 write!(f, "Unterminated string, beginning at {}", location)
+            }
+            Self::UnterminatedBlockComment(location) => {
+                write!(f, "Unterminated block comment, beginning at {}", location)
             }
             Self::UnexpectedCharacter {
                 location,
@@ -83,7 +86,7 @@ impl Lexer {
                 '+' => Ok(self.add_token(TokenCategory::Plus)),
                 '-' => Ok(self.add_token(TokenCategory::Minus)),
                 '*' => Ok(self.add_token(TokenCategory::Star)),
-                '/' => Ok(self.handle_slash()),
+                '/' => self.handle_slash(),
 
                 // Logical and bitwise operators
                 '!' => Ok(self.handle_bang()),
@@ -179,8 +182,30 @@ impl Lexer {
         }
     }
 
-    fn handle_slash(&mut self) {
-        if self.source.matches('/') {
+    fn handle_slash(&mut self) -> Result<(), LexerError> {
+        // Block comments
+        if self.source.matches('*') {
+            while self.source.peek().is_some_and(|character| character != '*')
+                || self
+                    .source
+                    .peek_after()
+                    .is_some_and(|character| character != '/')
+            {
+                self.source.advance();
+            }
+
+            if self.source.peek().is_some() && self.source.peek_after().is_some() {
+                self.source.advance();
+                self.source.advance();
+                return Ok(());
+            } else {
+                return Err(LexerError::UnterminatedBlockComment(
+                    self.current_token_start,
+                ));
+            }
+        }
+        // Single line comments
+        else if self.source.matches('/') {
             while self
                 .source
                 .peek()
@@ -191,6 +216,8 @@ impl Lexer {
         } else {
             self.add_token(TokenCategory::Slash);
         }
+
+        Ok(())
     }
 
     fn handle_string(&mut self) -> Result<(), LexerError> {
@@ -283,7 +310,7 @@ impl Lexer {
 
             // Identifier related
             "let" => self.add_token(TokenCategory::Let),
-            "fun" => self.add_token(TokenCategory::Fun),
+            "fu" => self.add_token(TokenCategory::Fu),
             _ => self.add_token(TokenCategory::Identifier(word)),
         };
     }

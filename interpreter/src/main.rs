@@ -7,11 +7,11 @@ mod token;
 fn main() {
     let mut lexer = Lexer::new(
         r#"
+        /*
+        */
         let name = "Sam";
 
-        print(name);
-
-        print(1 == 2);
+        /*
     "#,
     );
 
@@ -22,6 +22,6 @@ fn main() {
     }
 
     for error in errors {
-        println!("{}", error);
+        eprintln!("{}", error);
     }
 }
