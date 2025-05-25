@@ -59,15 +59,15 @@ impl Debug for LexerError {
 impl Error for LexerError {}
 
 impl Lexer {
-    pub fn new(source: &str) -> Self {
+    pub fn new(source: Source) -> Self {
         Self {
-            source: Source::new(source),
+            source: source,
             tokens: Vec::new(),
             current_token_start: Location::start(),
         }
     }
 
-    pub fn lex(&mut self) -> (&Vec<Token>, Vec<LexerError>) {
+    pub fn lex(mut self) -> (Vec<Token>, Vec<LexerError>) {
         let mut errors = Vec::new();
 
         self.current_token_start = self.source.location();
@@ -123,7 +123,7 @@ impl Lexer {
             self.current_token_start = self.source.location();
         }
 
-        (&self.tokens, errors)
+        (self.tokens, errors)
     }
 
     fn add_token(&mut self, category: TokenCategory) {
