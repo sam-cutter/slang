@@ -1,15 +1,11 @@
-use crate::token::Token;
+use crate::token_stream::TokenStream;
 
 pub struct Parser {
-    tokens: Vec<Token>,
-    index: usize,
+    tokens: TokenStream,
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens: tokens,
-            index: 0,
-        }
+    pub fn new(tokens: TokenStream) -> Self {
+        Self { tokens: tokens }
     }
 }

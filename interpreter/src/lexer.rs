@@ -1,6 +1,6 @@
 use crate::{
     source::{Location, Source},
-    token::{Token, TokenCategory},
+    token::{Token, TokenKind},
 };
 use std::{
     error::Error,
@@ -74,18 +74,18 @@ impl Lexer {
 
         while let Some(character) = self.source.advance() {
             let result = match character {
-                '(' => Ok(self.add_token(TokenCategory::LeftParenthesis)),
-                ')' => Ok(self.add_token(TokenCategory::RightParenthesis)),
-                '{' => Ok(self.add_token(TokenCategory::LeftBrace)),
-                '}' => Ok(self.add_token(TokenCategory::RightBrace)),
-                ',' => Ok(self.add_token(TokenCategory::Comma)),
-                '.' => Ok(self.add_token(TokenCategory::Dot)),
-                ';' => Ok(self.add_token(TokenCategory::Semicolon)),
+                '(' => Ok(self.add_token(TokenKind::LeftParenthesis)),
+                ')' => Ok(self.add_token(TokenKind::RightParenthesis)),
+                '{' => Ok(self.add_token(TokenKind::LeftBrace)),
+                '}' => Ok(self.add_token(TokenKind::RightBrace)),
+                ',' => Ok(self.add_token(TokenKind::Comma)),
+                '.' => Ok(self.add_token(TokenKind::Dot)),
+                ';' => Ok(self.add_token(TokenKind::Semicolon)),
 
                 // Arithmetic operators
-                '+' => Ok(self.add_token(TokenCategory::Plus)),
-                '-' => Ok(self.add_token(TokenCategory::Minus)),
-                '*' => Ok(self.add_token(TokenCategory::Star)),
+                '+' => Ok(self.add_token(TokenKind::Plus)),
+                '-' => Ok(self.add_token(TokenKind::Minus)),
+                '*' => Ok(self.add_token(TokenKind::Star)),
                 '/' => self.handle_slash(),
 
                 // Logical and bitwise operators
@@ -126,9 +126,9 @@ impl Lexer {
         (self.tokens, errors)
     }
 
-    fn add_token(&mut self, category: TokenCategory) {
+    fn add_token(&mut self, kind: TokenKind) {
         self.tokens.push(Token::new(
-            category,
+            kind,
             self.current_token_start,
             self.source.location().index - self.current_token_start.index,
         ));
@@ -136,49 +136,49 @@ impl Lexer {
 
     fn handle_bang(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenCategory::BangEqual);
+            self.add_token(TokenKind::BangEqual);
         } else {
-            self.add_token(TokenCategory::Bang);
+            self.add_token(TokenKind::Bang);
         }
     }
 
     fn handle_equal(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenCategory::DoubleEqual);
+            self.add_token(TokenKind::DoubleEqual);
         } else {
-            self.add_token(TokenCategory::Equal);
+            self.add_token(TokenKind::Equal);
         }
     }
 
     fn handle_less(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenCategory::LessEqual);
+            self.add_token(TokenKind::LessEqual);
         } else {
-            self.add_token(TokenCategory::Less);
+            self.add_token(TokenKind::Less);
         }
     }
 
     fn handle_greater(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenCategory::GreaterEqual);
+            self.add_token(TokenKind::GreaterEqual);
         } else {
-            self.add_token(TokenCategory::Greater);
+            self.add_token(TokenKind::Greater);
         }
     }
 
     fn handle_ampersand(&mut self) {
         if self.source.matches('&') {
-            self.add_token(TokenCategory::DoubleAmpersand);
+            self.add_token(TokenKind::DoubleAmpersand);
         } else {
-            self.add_token(TokenCategory::Ampersand);
+            self.add_token(TokenKind::Ampersand);
         }
     }
 
     fn handle_pipe(&mut self) {
         if self.source.matches('|') {
-            self.add_token(TokenCategory::DoublePipe);
+            self.add_token(TokenKind::DoublePipe);
         } else {
-            self.add_token(TokenCategory::Pipe);
+            self.add_token(TokenKind::Pipe);
         }
     }
 
@@ -214,7 +214,7 @@ impl Lexer {
                 self.source.advance();
             }
         } else {
-            self.add_token(TokenCategory::Slash);
+            self.add_token(TokenKind::Slash);
         }
 
         Ok(())
@@ -239,7 +239,7 @@ impl Lexer {
         // Consume the enclosing "
         self.source.advance();
 
-        self.add_token(TokenCategory::String(string));
+        self.add_token(TokenKind::String(string));
 
         Ok(())
     }
@@ -279,7 +279,7 @@ impl Lexer {
 
         let number: f64 = number.parse().unwrap();
 
-        self.add_token(TokenCategory::Number(number));
+        self.add_token(TokenKind::Number(number));
     }
 
     fn handle_word(&mut self, first_character: char) {
@@ -298,20 +298,20 @@ impl Lexer {
 
         match word.as_str() {
             // Literals
-            "true" => self.add_token(TokenCategory::Boolean(true)),
-            "false" => self.add_token(TokenCategory::Boolean(false)),
-            "null" => self.add_token(TokenCategory::Null),
+            "true" => self.add_token(TokenKind::Boolean(true)),
+            "false" => self.add_token(TokenKind::Boolean(false)),
+            "null" => self.add_token(TokenKind::Null),
 
             // Control flow
-            "if" => self.add_token(TokenCategory::If),
-            "else" => self.add_token(TokenCategory::Else),
-            "while" => self.add_token(TokenCategory::While),
-            "return" => self.add_token(TokenCategory::Return),
+            "if" => self.add_token(TokenKind::If),
+            "else" => self.add_token(TokenKind::Else),
+            "while" => self.add_token(TokenKind::While),
+            "return" => self.add_token(TokenKind::Return),
 
             // Identifier related
-            "let" => self.add_token(TokenCategory::Let),
-            "fu" => self.add_token(TokenCategory::Fu),
-            _ => self.add_token(TokenCategory::Identifier(word)),
+            "let" => self.add_token(TokenKind::Let),
+            "fu" => self.add_token(TokenKind::Fu),
+            _ => self.add_token(TokenKind::Identifier(word)),
         };
     }
 }

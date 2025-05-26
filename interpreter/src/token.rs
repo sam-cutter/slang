@@ -2,15 +2,15 @@ use crate::source::Location;
 
 #[derive(Debug)]
 pub struct Token {
-    category: TokenCategory,
+    kind: TokenKind,
     start: Location,
     length: usize,
 }
 
 impl Token {
-    pub fn new(category: TokenCategory, start: Location, length: usize) -> Self {
+    pub fn new(kind: TokenKind, start: Location, length: usize) -> Self {
         Self {
-            category,
+            kind,
             start,
             length,
         }
@@ -18,7 +18,7 @@ impl Token {
 }
 
 #[derive(Debug)]
-pub enum TokenCategory {
+pub enum TokenKind {
     LeftParenthesis,
     RightParenthesis,
     LeftBrace,
