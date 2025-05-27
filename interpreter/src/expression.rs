@@ -1,5 +1,6 @@
 use crate::token::Token;
 
+#[derive(Debug)]
 pub enum Expression {
     Binary {
         left: Box<Expression>,
@@ -14,6 +15,7 @@ pub enum Expression {
     Literal(Literal),
 }
 
+#[derive(Debug)]
 pub enum Literal {
     String(String),
     Number(f64),

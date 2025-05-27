@@ -2,6 +2,7 @@ use crate::{
     source::{Location, Source},
     token::{Token, TokenKind},
 };
+
 use std::{
     error::Error,
     fmt::{Debug, Display},

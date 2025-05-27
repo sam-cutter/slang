@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::source::Location;
 
 #[derive(Debug)]
@@ -18,12 +16,12 @@ impl Token {
         }
     }
 
-    pub fn kind(&self) -> TokenKind {
-        self.kind
+    pub fn lexeme(&self) -> &str {
+        &self.lexeme
     }
 
-    pub fn has_kind(&self, kind: &TokenKind) -> bool {
-        mem::discriminant(&self.kind) == mem::discriminant(kind)
+    pub fn kind(&self) -> TokenKind {
+        self.kind
     }
 }
 

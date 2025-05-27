@@ -1,8 +1,35 @@
-use crate::{expression::Expression, token::TokenKind, token_stream::TokenStream};
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
+};
+
+use crate::{
+    expression::{Expression, Literal},
+    token::TokenKind,
+    token_stream::TokenStream,
+};
 
 pub enum ParserError {
     ExpectedToken(Vec<TokenKind>),
 }
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ExpectedToken(tokens) => {
+                write!(f, "Expected one of the following tokens: {:?}", tokens)
+            }
+        }
+    }
+}
+
+impl Debug for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl Error for ParserError {}
 
 pub struct Parser {
     tokens: TokenStream,
@@ -13,7 +40,7 @@ impl Parser {
         Self { tokens: tokens }
     }
 
-    fn expression(&mut self) -> Result<Expression, ParserError> {
+    pub fn expression(&mut self) -> Result<Expression, ParserError> {
         self.equality()
     }
 
@@ -88,14 +115,65 @@ impl Parser {
                 operand: Box::new(self.primary()?),
             })
         } else {
-            Err(ParserError::ExpectedToken(vec![
-                TokenKind::Bang,
-                TokenKind::Minus,
-            ]))
+            self.primary()
         }
     }
 
     fn primary(&mut self) -> Result<Expression, ParserError> {
-        todo!()
+        let expected_error = ParserError::ExpectedToken(Vec::from([
+            TokenKind::Boolean,
+            TokenKind::Null,
+            TokenKind::Number,
+            TokenKind::String,
+        ]));
+
+        let result = if let Some(token) = self.tokens.peek() {
+            Ok(match token.kind() {
+                // TODO: there are some weird bugs here with consuming the right parenthesis
+                TokenKind::LeftParenthesis => {
+                    self.tokens.advance();
+
+                    let expression = self.expression()?;
+
+                    if self
+                        .tokens
+                        .matches(&[TokenKind::RightParenthesis])
+                        .is_none()
+                    {
+                        Err(ParserError::ExpectedToken(vec![
+                            TokenKind::RightParenthesis,
+                        ]))?
+                    }
+
+                    Expression::Grouping(Box::new(expression))
+                }
+
+                TokenKind::String => Expression::Literal(Literal::String(
+                    token
+                        .lexeme()
+                        .get(1..token.lexeme().len() - 2)
+                        .unwrap()
+                        .to_string(),
+                )),
+
+                TokenKind::Number => {
+                    Expression::Literal(Literal::Number(token.lexeme().parse().unwrap()))
+                }
+                TokenKind::Boolean => {
+                    Expression::Literal(Literal::Boolean(token.lexeme().parse().unwrap()))
+                }
+                TokenKind::Null => Expression::Literal(Literal::Null),
+
+                _ => Err(expected_error)?,
+            })
+        } else {
+            Err(expected_error)
+        };
+
+        if result.is_ok() {
+            self.tokens.advance();
+        }
+
+        result
     }
 }

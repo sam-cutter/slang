@@ -11,7 +11,13 @@ mod token;
 mod token_stream;
 
 fn main() {
-    let source = Source::new("let name = \"Sam\";");
+    let source = Source::new(
+        r#"
+    (1 / (1 + 1)))
+
+
+    "#,
+    );
 
     let lexer = Lexer::new(source);
 
@@ -27,5 +33,10 @@ fn main() {
 
     let tokens = TokenStream::new(tokens);
 
-    let _parser = Parser::new(tokens);
+    let mut parser = Parser::new(tokens);
+
+    match parser.expression() {
+        Ok(expression) => println!("{:#?}", expression),
+        Err(error) => println!("{:?}", error),
+    }
 }

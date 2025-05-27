@@ -24,7 +24,7 @@ impl TokenStream {
     pub fn matches(&mut self, targets: &[TokenKind]) -> Option<Token> {
         if let Some(next) = self.peek() {
             for target in targets {
-                if next.has_kind(target) {
+                if &next.kind() == target {
                     return self.advance();
                 }
             }
