@@ -1,23 +1,33 @@
+use std::mem;
+
 use crate::source::Location;
 
 #[derive(Debug)]
 pub struct Token {
     kind: TokenKind,
+    lexeme: String,
     start: Location,
-    length: usize,
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, start: Location, length: usize) -> Self {
+    pub fn new(kind: TokenKind, lexeme: String, start: Location) -> Self {
         Self {
             kind,
+            lexeme,
             start,
-            length,
         }
+    }
+
+    pub fn kind(&self) -> TokenKind {
+        self.kind
+    }
+
+    pub fn has_kind(&self, kind: &TokenKind) -> bool {
+        mem::discriminant(&self.kind) == mem::discriminant(kind)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenKind {
     LeftParenthesis,
     RightParenthesis,
@@ -48,9 +58,9 @@ pub enum TokenKind {
     DoublePipe,
 
     // Literals
-    String(String),
-    Number(f64),
-    Boolean(bool),
+    String,
+    Number,
+    Boolean,
     Null,
 
     // Control flow
@@ -62,5 +72,5 @@ pub enum TokenKind {
     // Identifier related
     Let,
     Fu,
-    Identifier(String),
+    Identifier,
 }

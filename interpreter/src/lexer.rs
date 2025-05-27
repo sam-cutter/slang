@@ -10,7 +10,6 @@ use std::{
 pub struct Lexer {
     source: Source,
     tokens: Vec<Token>,
-    current_token_start: Location,
 }
 
 pub enum LexerError {
@@ -63,14 +62,11 @@ impl Lexer {
         Self {
             source: source,
             tokens: Vec::new(),
-            current_token_start: Location::start(),
         }
     }
 
     pub fn lex(mut self) -> (Vec<Token>, Vec<LexerError>) {
         let mut errors = Vec::new();
-
-        self.current_token_start = self.source.location();
 
         while let Some(character) = self.source.advance() {
             let result = match character {
@@ -98,7 +94,7 @@ impl Lexer {
 
                 // Literals (not including booleans or null)
                 '"' => self.handle_string(),
-                character if character.is_ascii_digit() => Ok(self.handle_number(character)),
+                character if character.is_ascii_digit() => Ok(self.handle_number()),
 
                 // Identifiers and keywords
                 character if character.is_ascii_alphabetic() || character == '_' => {
@@ -110,7 +106,7 @@ impl Lexer {
 
                 // Unexpected characters
                 _ => Err(LexerError::UnexpectedCharacter {
-                    location: self.current_token_start,
+                    location: self.source.current_token_start(),
                     character: character,
                     expected: None,
                 }),
@@ -120,18 +116,16 @@ impl Lexer {
                 errors.push(error);
             }
 
-            self.current_token_start = self.source.location();
+            self.source.new_token();
         }
 
         (self.tokens, errors)
     }
 
     fn add_token(&mut self, kind: TokenKind) {
-        self.tokens.push(Token::new(
-            kind,
-            self.current_token_start,
-            self.source.location().index - self.current_token_start.index,
-        ));
+        let (start, lexeme) = self.source.new_token();
+
+        self.tokens.push(Token::new(kind, lexeme, start));
     }
 
     fn handle_bang(&mut self) {
@@ -200,7 +194,7 @@ impl Lexer {
                 return Ok(());
             } else {
                 return Err(LexerError::UnterminatedBlockComment(
-                    self.current_token_start,
+                    self.source.current_token_start(),
                 ));
             }
         }
@@ -221,41 +215,31 @@ impl Lexer {
     }
 
     fn handle_string(&mut self) -> Result<(), LexerError> {
-        let mut string = String::new();
-
-        while let Some(character) = self.source.peek() {
-            if character == '"' {
-                break;
-            }
-
-            string.push(character);
+        while self.source.peek().is_some_and(|character| character != '"') {
             self.source.advance();
         }
 
         if self.source.at_end() {
-            return Err(LexerError::UnterminatedString(self.current_token_start));
+            return Err(LexerError::UnterminatedString(
+                self.source.current_token_start(),
+            ));
         }
 
         // Consume the enclosing "
         self.source.advance();
 
-        self.add_token(TokenKind::String(string));
+        self.add_token(TokenKind::String);
 
         Ok(())
     }
 
-    fn handle_number(&mut self, first_digit: char) {
-        let mut number = String::new();
-
-        number.push(first_digit);
-
-        while let Some(character) = self.source.peek() {
-            if character.is_ascii_digit() {
-                number.push(character);
-                self.source.advance();
-            } else {
-                break;
-            }
+    fn handle_number(&mut self) {
+        while self
+            .source
+            .peek()
+            .is_some_and(|character| character.is_ascii_digit())
+        {
+            self.source.advance();
         }
 
         if self.source.peek().is_some_and(|character| character == '.')
@@ -264,22 +248,18 @@ impl Lexer {
                 .peek_after()
                 .is_some_and(|character| character.is_ascii_digit())
         {
-            number.push('.');
             self.source.advance();
 
-            while let Some(character) = self.source.peek() {
-                if character.is_ascii_digit() {
-                    number.push(character);
-                    self.source.advance();
-                } else {
-                    break;
-                }
+            while self
+                .source
+                .peek()
+                .is_some_and(|character| character.is_ascii_digit())
+            {
+                self.source.advance();
             }
         }
 
-        let number: f64 = number.parse().unwrap();
-
-        self.add_token(TokenKind::Number(number));
+        self.add_token(TokenKind::Number);
     }
 
     fn handle_word(&mut self, first_character: char) {
@@ -298,8 +278,7 @@ impl Lexer {
 
         match word.as_str() {
             // Literals
-            "true" => self.add_token(TokenKind::Boolean(true)),
-            "false" => self.add_token(TokenKind::Boolean(false)),
+            "true" | "false" => self.add_token(TokenKind::Boolean),
             "null" => self.add_token(TokenKind::Null),
 
             // Control flow
@@ -311,7 +290,7 @@ impl Lexer {
             // Identifier related
             "let" => self.add_token(TokenKind::Let),
             "fu" => self.add_token(TokenKind::Fu),
-            _ => self.add_token(TokenKind::Identifier(word)),
+            _ => self.add_token(TokenKind::Identifier),
         };
     }
 }

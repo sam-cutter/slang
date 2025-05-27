@@ -11,7 +11,7 @@ mod token;
 mod token_stream;
 
 fn main() {
-    let source = Source::new("1 + 2;");
+    let source = Source::new("let name = \"Sam\";");
 
     let lexer = Lexer::new(source);
 
