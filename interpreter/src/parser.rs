@@ -9,6 +9,7 @@ use crate::{
     token_stream::TokenStream,
 };
 
+// TODO: figure out how to store location information here
 pub enum ParserError {
     ExpectedToken(Vec<TokenKind>),
 }
@@ -16,8 +17,8 @@ pub enum ParserError {
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ExpectedToken(tokens) => {
-                write!(f, "Expected one of the following tokens: {:?}", tokens)
+            Self::ExpectedToken(expected) => {
+                write!(f, "Expected one of the following tokens: {:?}", expected)
             }
         }
     }
@@ -129,21 +130,12 @@ impl Parser {
 
         let result = if let Some(token) = self.tokens.peek() {
             Ok(match token.kind() {
-                // TODO: there are some weird bugs here with consuming the right parenthesis
                 TokenKind::LeftParenthesis => {
                     self.tokens.advance();
 
                     let expression = self.expression()?;
 
-                    if self
-                        .tokens
-                        .matches(&[TokenKind::RightParenthesis])
-                        .is_none()
-                    {
-                        Err(ParserError::ExpectedToken(vec![
-                            TokenKind::RightParenthesis,
-                        ]))?
-                    }
+                    self.tokens.consume(TokenKind::RightParenthesis)?;
 
                     Expression::Grouping(Box::new(expression))
                 }
@@ -159,9 +151,11 @@ impl Parser {
                 TokenKind::Number => {
                     Expression::Literal(Literal::Number(token.lexeme().parse().unwrap()))
                 }
+
                 TokenKind::Boolean => {
                     Expression::Literal(Literal::Boolean(token.lexeme().parse().unwrap()))
                 }
+
                 TokenKind::Null => Expression::Literal(Literal::Null),
 
                 _ => Err(expected_error)?,

@@ -13,9 +13,7 @@ mod token_stream;
 fn main() {
     let source = Source::new(
         r#"
-    (1 / (1 + 1)))
-
-
+        1 + 2 + 3 + 4 + 5
     "#,
     );
 
@@ -28,7 +26,7 @@ fn main() {
     }
 
     for error in &errors {
-        println!("{:?}", error);
+        eprintln!("{:?}", error);
     }
 
     let tokens = TokenStream::new(tokens);

@@ -27,10 +27,10 @@ impl Display for LexerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnterminatedString(location) => {
-                write!(f, "Unterminated string, beginning at {}", location)
+                write!(f, "{} Unterminated string.", location)
             }
             Self::UnterminatedBlockComment(location) => {
-                write!(f, "Unterminated block comment, beginning at {}", location)
+                write!(f, "{} Unterminated block comment.", location)
             }
             Self::UnexpectedCharacter {
                 location,

@@ -1,6 +1,9 @@
 use std::collections::VecDeque;
 
-use crate::token::{Token, TokenKind};
+use crate::{
+    parser::ParserError,
+    token::{Token, TokenKind},
+};
 
 pub struct TokenStream {
     tokens: VecDeque<Token>,
@@ -31,5 +34,13 @@ impl TokenStream {
         }
 
         None
+    }
+
+    pub fn consume(&mut self, kind: TokenKind) -> Result<Token, ParserError> {
+        if let Some(token) = self.matches(&[kind]) {
+            Ok(token)
+        } else {
+            Err(ParserError::ExpectedToken(vec![kind]))
+        }
     }
 }
