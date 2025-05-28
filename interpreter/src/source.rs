@@ -26,8 +26,6 @@ impl Location {
 pub struct Source {
     text: Vec<char>,
     location: Location,
-    current_token_start: Location,
-    current_token_lexeme: String,
 }
 
 impl Source {
@@ -35,8 +33,6 @@ impl Source {
         Self {
             text: text.chars().collect(),
             location: Location::start(),
-            current_token_start: Location::start(),
-            current_token_lexeme: String::new(),
         }
     }
 
@@ -52,8 +48,6 @@ impl Source {
         let next = self.peek();
 
         if let Some(character) = next {
-            self.current_token_lexeme.push(character);
-
             self.location.index += 1;
             self.location.column += 1;
 
@@ -82,14 +76,7 @@ impl Source {
         self.location.index >= self.text.len()
     }
 
-    pub fn new_token(&mut self) -> (Location, String) {
-        (
-            mem::replace(&mut self.current_token_start, self.location),
-            mem::replace(&mut self.current_token_lexeme, String::new()),
-        )
-    }
-
-    pub fn current_token_start(&self) -> Location {
-        self.current_token_start
+    pub fn location(&self) -> Location {
+        self.location
     }
 }

@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     expression::{Expression, Literal},
-    token::TokenKind,
+    token::{TokenData, TokenKind},
     token_stream::TokenStream,
 };
 
@@ -128,9 +128,10 @@ impl Parser {
             TokenKind::String,
         ]));
 
-        let result = if let Some(token) = self.tokens.peek() {
-            Ok(match token.kind() {
-                TokenKind::LeftParenthesis => {
+        // TODO: this won't work, can only consume token if it is valid
+        let result = if let Some(token) = self.tokens.advance() {
+            Ok(match token.data() {
+                TokenData::LeftParenthesis => {
                     self.tokens.advance();
 
                     let expression = self.expression()?;
@@ -140,33 +141,19 @@ impl Parser {
                     Expression::Grouping(Box::new(expression))
                 }
 
-                TokenKind::String => Expression::Literal(Literal::String(
-                    token
-                        .lexeme()
-                        .get(1..token.lexeme().len() - 2)
-                        .unwrap()
-                        .to_string(),
-                )),
+                TokenData::String(string) => Expression::Literal(Literal::String(string)),
 
-                TokenKind::Number => {
-                    Expression::Literal(Literal::Number(token.lexeme().parse().unwrap()))
-                }
+                TokenData::Number(number) => Expression::Literal(Literal::Number(number)),
 
-                TokenKind::Boolean => {
-                    Expression::Literal(Literal::Boolean(token.lexeme().parse().unwrap()))
-                }
+                TokenData::Boolean(boolean) => Expression::Literal(Literal::Boolean(boolean)),
 
-                TokenKind::Null => Expression::Literal(Literal::Null),
+                TokenData::Null => Expression::Literal(Literal::Null),
 
                 _ => Err(expected_error)?,
             })
         } else {
             Err(expected_error)
         };
-
-        if result.is_ok() {
-            self.tokens.advance();
-        }
 
         result
     }

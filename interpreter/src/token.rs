@@ -2,26 +2,26 @@ use crate::source::Location;
 
 #[derive(Debug)]
 pub struct Token {
-    kind: TokenKind,
-    lexeme: String,
+    data: TokenData,
     start: Location,
+    length: usize,
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, lexeme: String, start: Location) -> Self {
+    pub fn new(data: TokenData, start: Location, length: usize) -> Self {
         Self {
-            kind,
-            lexeme,
+            data,
             start,
+            length,
         }
     }
 
-    pub fn lexeme(&self) -> &str {
-        &self.lexeme
+    pub fn kind(&self) -> TokenKind {
+        (&self.data).into()
     }
 
-    pub fn kind(&self) -> TokenKind {
-        self.kind
+    pub fn data(self) -> TokenData {
+        self.data
     }
 }
 
@@ -71,4 +71,103 @@ pub enum TokenKind {
     Let,
     Fu,
     Identifier,
+}
+
+impl From<&TokenData> for TokenKind {
+    fn from(data: &TokenData) -> Self {
+        match data {
+            TokenData::LeftParenthesis => TokenKind::LeftParenthesis,
+            TokenData::RightParenthesis => TokenKind::RightParenthesis,
+            TokenData::LeftBrace => TokenKind::LeftBrace,
+            TokenData::RightBrace => TokenKind::RightBrace,
+            TokenData::Comma => TokenKind::Comma,
+            TokenData::Dot => TokenKind::Dot,
+            TokenData::Semicolon => TokenKind::Semicolon,
+
+            // Arithmetic operators
+            TokenData::Plus => TokenKind::Plus,
+            TokenData::Minus => TokenKind::Minus,
+            TokenData::Star => TokenKind::Star,
+            TokenData::Slash => TokenKind::Slash,
+
+            // Logical and bitwise operators
+            TokenData::Bang => TokenKind::Bang,
+            TokenData::BangEqual => TokenKind::BangEqual,
+            TokenData::Equal => TokenKind::Equal,
+            TokenData::DoubleEqual => TokenKind::DoubleEqual,
+            TokenData::Greater => TokenKind::Greater,
+            TokenData::GreaterEqual => TokenKind::GreaterEqual,
+            TokenData::Less => TokenKind::Less,
+            TokenData::LessEqual => TokenKind::LessEqual,
+            TokenData::Ampersand => TokenKind::Ampersand,
+            TokenData::DoubleAmpersand => TokenKind::DoubleAmpersand,
+            TokenData::Pipe => TokenKind::Pipe,
+            TokenData::DoublePipe => TokenKind::DoublePipe,
+
+            // Literals
+            TokenData::String(_) => TokenKind::String,
+            TokenData::Number(_) => TokenKind::Number,
+            TokenData::Boolean(_) => TokenKind::Boolean,
+            TokenData::Null => TokenKind::Null,
+
+            // Control flow
+            TokenData::If => TokenKind::If,
+            TokenData::Else => TokenKind::Else,
+            TokenData::While => TokenKind::While,
+            TokenData::Return => TokenKind::Return,
+
+            // Identifier related
+            TokenData::Let => TokenKind::Let,
+            TokenData::Fu => TokenKind::Fu,
+            TokenData::Identifier(_) => TokenKind::Identifier,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TokenData {
+    LeftParenthesis,
+    RightParenthesis,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Dot,
+    Semicolon,
+
+    // Arithmetic operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+
+    // Logical and bitwise operators
+    Bang,
+    BangEqual,
+    Equal,
+    DoubleEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    Ampersand,
+    DoubleAmpersand,
+    Pipe,
+    DoublePipe,
+
+    // Literals
+    String(String),
+    Number(f64),
+    Boolean(bool),
+    Null,
+
+    // Control flow
+    If,
+    Else,
+    While,
+    Return,
+
+    // Identifier related
+    Let,
+    Fu,
+    Identifier(String),
 }

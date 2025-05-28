@@ -1,17 +1,12 @@
 use crate::{
     source::{Location, Source},
-    token::{Token, TokenKind},
+    token::{Token, TokenData},
 };
 
 use std::{
     error::Error,
     fmt::{Debug, Display},
 };
-
-pub struct Lexer {
-    source: Source,
-    tokens: Vec<Token>,
-}
 
 pub enum LexerError {
     UnterminatedString(Location),
@@ -58,11 +53,18 @@ impl Debug for LexerError {
 
 impl Error for LexerError {}
 
+pub struct Lexer {
+    source: Source,
+    tokens: Vec<Token>,
+    current_token_start: Location,
+}
+
 impl Lexer {
     pub fn new(source: Source) -> Self {
         Self {
             source: source,
             tokens: Vec::new(),
+            current_token_start: Location::start(),
         }
     }
 
@@ -71,18 +73,18 @@ impl Lexer {
 
         while let Some(character) = self.source.advance() {
             let result = match character {
-                '(' => Ok(self.add_token(TokenKind::LeftParenthesis)),
-                ')' => Ok(self.add_token(TokenKind::RightParenthesis)),
-                '{' => Ok(self.add_token(TokenKind::LeftBrace)),
-                '}' => Ok(self.add_token(TokenKind::RightBrace)),
-                ',' => Ok(self.add_token(TokenKind::Comma)),
-                '.' => Ok(self.add_token(TokenKind::Dot)),
-                ';' => Ok(self.add_token(TokenKind::Semicolon)),
+                '(' => Ok(self.add_token(TokenData::LeftParenthesis)),
+                ')' => Ok(self.add_token(TokenData::RightParenthesis)),
+                '{' => Ok(self.add_token(TokenData::LeftBrace)),
+                '}' => Ok(self.add_token(TokenData::RightBrace)),
+                ',' => Ok(self.add_token(TokenData::Comma)),
+                '.' => Ok(self.add_token(TokenData::Dot)),
+                ';' => Ok(self.add_token(TokenData::Semicolon)),
 
                 // Arithmetic operators
-                '+' => Ok(self.add_token(TokenKind::Plus)),
-                '-' => Ok(self.add_token(TokenKind::Minus)),
-                '*' => Ok(self.add_token(TokenKind::Star)),
+                '+' => Ok(self.add_token(TokenData::Plus)),
+                '-' => Ok(self.add_token(TokenData::Minus)),
+                '*' => Ok(self.add_token(TokenData::Star)),
                 '/' => self.handle_slash(),
 
                 // Logical and bitwise operators
@@ -94,8 +96,8 @@ impl Lexer {
                 '|' => Ok(self.handle_pipe()),
 
                 // Literals (not including booleans or null)
-                '"' => self.handle_string(),
-                character if character.is_ascii_digit() => Ok(self.handle_number()),
+                '"' => self.handle_string(character),
+                character if character.is_ascii_digit() => Ok(self.handle_number(character)),
 
                 // Identifiers and keywords
                 character if character.is_ascii_alphabetic() || character == '_' => {
@@ -107,7 +109,7 @@ impl Lexer {
 
                 // Unexpected characters
                 _ => Err(LexerError::UnexpectedCharacter {
-                    location: self.source.current_token_start(),
+                    location: self.current_token_start,
                     character: character,
                     expected: None,
                 }),
@@ -117,63 +119,65 @@ impl Lexer {
                 errors.push(error);
             }
 
-            self.source.new_token();
+            self.current_token_start = self.source.location();
         }
 
         (self.tokens, errors)
     }
 
-    fn add_token(&mut self, kind: TokenKind) {
-        let (start, lexeme) = self.source.new_token();
-
-        self.tokens.push(Token::new(kind, lexeme, start));
+    fn add_token(&mut self, data: TokenData) {
+        self.tokens.push(Token::new(
+            data,
+            self.current_token_start,
+            self.source.location().index - self.current_token_start.index,
+        ));
     }
 
     fn handle_bang(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenKind::BangEqual);
+            self.add_token(TokenData::BangEqual);
         } else {
-            self.add_token(TokenKind::Bang);
+            self.add_token(TokenData::Bang);
         }
     }
 
     fn handle_equal(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenKind::DoubleEqual);
+            self.add_token(TokenData::DoubleEqual);
         } else {
-            self.add_token(TokenKind::Equal);
+            self.add_token(TokenData::Equal);
         }
     }
 
     fn handle_less(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenKind::LessEqual);
+            self.add_token(TokenData::LessEqual);
         } else {
-            self.add_token(TokenKind::Less);
+            self.add_token(TokenData::Less);
         }
     }
 
     fn handle_greater(&mut self) {
         if self.source.matches('=') {
-            self.add_token(TokenKind::GreaterEqual);
+            self.add_token(TokenData::GreaterEqual);
         } else {
-            self.add_token(TokenKind::Greater);
+            self.add_token(TokenData::Greater);
         }
     }
 
     fn handle_ampersand(&mut self) {
         if self.source.matches('&') {
-            self.add_token(TokenKind::DoubleAmpersand);
+            self.add_token(TokenData::DoubleAmpersand);
         } else {
-            self.add_token(TokenKind::Ampersand);
+            self.add_token(TokenData::Ampersand);
         }
     }
 
     fn handle_pipe(&mut self) {
         if self.source.matches('|') {
-            self.add_token(TokenKind::DoublePipe);
+            self.add_token(TokenData::DoublePipe);
         } else {
-            self.add_token(TokenKind::Pipe);
+            self.add_token(TokenData::Pipe);
         }
     }
 
@@ -195,7 +199,7 @@ impl Lexer {
                 return Ok(());
             } else {
                 return Err(LexerError::UnterminatedBlockComment(
-                    self.source.current_token_start(),
+                    self.current_token_start,
                 ));
             }
         }
@@ -209,37 +213,49 @@ impl Lexer {
                 self.source.advance();
             }
         } else {
-            self.add_token(TokenKind::Slash);
+            self.add_token(TokenData::Slash);
         }
 
         Ok(())
     }
 
-    fn handle_string(&mut self) -> Result<(), LexerError> {
-        while self.source.peek().is_some_and(|character| character != '"') {
+    fn handle_string(&mut self, first_character: char) -> Result<(), LexerError> {
+        let mut string = String::new();
+
+        string.push(first_character);
+
+        while let Some(character) = self.source.peek() {
+            if character == '"' {
+                break;
+            }
+
+            string.push(character);
             self.source.advance();
         }
 
         if self.source.at_end() {
-            return Err(LexerError::UnterminatedString(
-                self.source.current_token_start(),
-            ));
+            return Err(LexerError::UnterminatedString(self.current_token_start));
         }
 
         // Consume the enclosing "
         self.source.advance();
 
-        self.add_token(TokenKind::String);
+        self.add_token(TokenData::String(string));
 
         Ok(())
     }
 
-    fn handle_number(&mut self) {
-        while self
-            .source
-            .peek()
-            .is_some_and(|character| character.is_ascii_digit())
-        {
+    fn handle_number(&mut self, first_digit: char) {
+        let mut number = String::new();
+
+        number.push(first_digit);
+
+        while let Some(character) = self.source.peek() {
+            if !character.is_ascii_digit() {
+                break;
+            }
+
+            number.push(character);
             self.source.advance();
         }
 
@@ -249,18 +265,22 @@ impl Lexer {
                 .peek_after()
                 .is_some_and(|character| character.is_ascii_digit())
         {
+            number.push('.');
             self.source.advance();
 
-            while self
-                .source
-                .peek()
-                .is_some_and(|character| character.is_ascii_digit())
-            {
+            while let Some(character) = self.source.peek() {
+                if !character.is_ascii_digit() {
+                    break;
+                }
+
+                number.push(character);
                 self.source.advance();
             }
         }
 
-        self.add_token(TokenKind::Number);
+        let number: f64 = number.parse().unwrap();
+
+        self.add_token(TokenData::Number(number))
     }
 
     fn handle_word(&mut self, first_character: char) {
@@ -279,19 +299,20 @@ impl Lexer {
 
         match word.as_str() {
             // Literals
-            "true" | "false" => self.add_token(TokenKind::Boolean),
-            "null" => self.add_token(TokenKind::Null),
+            "true" => self.add_token(TokenData::Boolean(true)),
+            "false" => self.add_token(TokenData::Boolean(false)),
+            "null" => self.add_token(TokenData::Null),
 
             // Control flow
-            "if" => self.add_token(TokenKind::If),
-            "else" => self.add_token(TokenKind::Else),
-            "while" => self.add_token(TokenKind::While),
-            "return" => self.add_token(TokenKind::Return),
+            "if" => self.add_token(TokenData::If),
+            "else" => self.add_token(TokenData::Else),
+            "while" => self.add_token(TokenData::While),
+            "return" => self.add_token(TokenData::Return),
 
             // Identifier related
-            "let" => self.add_token(TokenKind::Let),
-            "fu" => self.add_token(TokenKind::Fu),
-            _ => self.add_token(TokenKind::Identifier),
+            "let" => self.add_token(TokenData::Let),
+            "fu" => self.add_token(TokenData::Fu),
+            _ => self.add_token(TokenData::Identifier(word)),
         };
     }
 }
