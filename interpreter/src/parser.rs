@@ -38,7 +38,7 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: TokenStream) -> Self {
-        Self { tokens: tokens }
+        Self { tokens }
     }
 
     pub fn expression(&mut self) -> Result<Expression, ParserError> {
@@ -121,15 +121,15 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expression, ParserError> {
-        let expected_error = ParserError::ExpectedToken(Vec::from([
+        let expected = [
+            TokenKind::LeftParenthesis,
+            TokenKind::String,
+            TokenKind::Number,
             TokenKind::Boolean,
             TokenKind::Null,
-            TokenKind::Number,
-            TokenKind::String,
-        ]));
+        ];
 
-        // TODO: this won't work, can only consume token if it is valid
-        let result = if let Some(token) = self.tokens.advance() {
+        if let Some(token) = self.tokens.matches(&expected) {
             Ok(match token.data() {
                 TokenData::LeftParenthesis => {
                     self.tokens.advance();
@@ -149,12 +149,10 @@ impl Parser {
 
                 TokenData::Null => Expression::Literal(Literal::Null),
 
-                _ => Err(expected_error)?,
+                _ => unreachable!(),
             })
         } else {
-            Err(expected_error)
-        };
-
-        result
+            Err(ParserError::ExpectedToken(expected.to_vec()))
+        }
     }
 }

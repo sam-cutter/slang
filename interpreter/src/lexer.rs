@@ -1,11 +1,11 @@
-use crate::{
-    source::{Location, Source},
-    token::{Token, TokenData},
-};
-
 use std::{
     error::Error,
     fmt::{Debug, Display},
+};
+
+use crate::{
+    source::{Location, Source},
+    token::{Token, TokenData},
 };
 
 pub enum LexerError {
@@ -33,7 +33,7 @@ impl Display for LexerError {
                 expected,
             } => write!(
                 f,
-                "Unexpected character at position {}: `{}`{}",
+                "{} Unexpected character: `{}`{}",
                 location,
                 character,
                 match expected {
@@ -96,7 +96,7 @@ impl Lexer {
                 '|' => Ok(self.handle_pipe()),
 
                 // Literals (not including booleans or null)
-                '"' => self.handle_string(character),
+                '"' => self.handle_string(),
                 character if character.is_ascii_digit() => Ok(self.handle_number(character)),
 
                 // Identifiers and keywords
@@ -196,6 +196,7 @@ impl Lexer {
             if self.source.peek().is_some() && self.source.peek_after().is_some() {
                 self.source.advance();
                 self.source.advance();
+
                 return Ok(());
             } else {
                 return Err(LexerError::UnterminatedBlockComment(
@@ -219,10 +220,8 @@ impl Lexer {
         Ok(())
     }
 
-    fn handle_string(&mut self, first_character: char) -> Result<(), LexerError> {
+    fn handle_string(&mut self) -> Result<(), LexerError> {
         let mut string = String::new();
-
-        string.push(first_character);
 
         while let Some(character) = self.source.peek() {
             if character == '"' {

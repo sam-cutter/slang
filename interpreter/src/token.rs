@@ -25,6 +25,54 @@ impl Token {
     }
 }
 
+#[derive(Debug)]
+pub enum TokenData {
+    LeftParenthesis,
+    RightParenthesis,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Dot,
+    Semicolon,
+
+    // Arithmetic operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+
+    // Logical and bitwise operators
+    Bang,
+    BangEqual,
+    Equal,
+    DoubleEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    Ampersand,
+    DoubleAmpersand,
+    Pipe,
+    DoublePipe,
+
+    // Literals
+    String(String),
+    Number(f64),
+    Boolean(bool),
+    Null,
+
+    // Control flow
+    If,
+    Else,
+    While,
+    Return,
+
+    // Identifier related
+    Let,
+    Fu,
+    Identifier(String),
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenKind {
     LeftParenthesis,
@@ -122,52 +170,4 @@ impl From<&TokenData> for TokenKind {
             TokenData::Identifier(_) => TokenKind::Identifier,
         }
     }
-}
-
-#[derive(Debug)]
-pub enum TokenData {
-    LeftParenthesis,
-    RightParenthesis,
-    LeftBrace,
-    RightBrace,
-    Comma,
-    Dot,
-    Semicolon,
-
-    // Arithmetic operators
-    Plus,
-    Minus,
-    Star,
-    Slash,
-
-    // Logical and bitwise operators
-    Bang,
-    BangEqual,
-    Equal,
-    DoubleEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-    Ampersand,
-    DoubleAmpersand,
-    Pipe,
-    DoublePipe,
-
-    // Literals
-    String(String),
-    Number(f64),
-    Boolean(bool),
-    Null,
-
-    // Control flow
-    If,
-    Else,
-    While,
-    Return,
-
-    // Identifier related
-    Let,
-    Fu,
-    Identifier(String),
 }
