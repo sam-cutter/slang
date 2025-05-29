@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{
     parser::ParserError,
+    source::GeneralLocation,
     token::{Token, TokenKind},
 };
 
@@ -39,8 +40,16 @@ impl TokenStream {
     pub fn consume(&mut self, kind: TokenKind) -> Result<Token, ParserError> {
         if let Some(token) = self.matches(&[kind]) {
             Ok(token)
+        } else if let Some(token) = self.peek() {
+            Err(ParserError::ExpectedToken {
+                expected: vec![kind],
+                location: GeneralLocation::Location(token.start()),
+            })
         } else {
-            Err(ParserError::ExpectedToken(vec![kind]))
+            Err(ParserError::ExpectedToken {
+                expected: vec![kind],
+                location: GeneralLocation::EndOfFile,
+            })
         }
     }
 }

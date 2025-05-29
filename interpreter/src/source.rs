@@ -23,6 +23,20 @@ impl Location {
     }
 }
 
+pub enum GeneralLocation {
+    Location(Location),
+    EndOfFile,
+}
+
+impl Display for GeneralLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GeneralLocation::Location(location) => write!(f, "{}", location),
+            GeneralLocation::EndOfFile => write!(f, "[end of file]"),
+        }
+    }
+}
+
 pub struct Source {
     text: Vec<char>,
     location: Location,

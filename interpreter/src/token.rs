@@ -17,7 +17,11 @@ impl Token {
     }
 
     pub fn kind(&self) -> TokenKind {
-        (&self.data).into()
+        self.data.kind()
+    }
+
+    pub fn start(&self) -> Location {
+        self.start
     }
 
     pub fn data(self) -> TokenData {
@@ -73,57 +77,9 @@ pub enum TokenData {
     Identifier(String),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum TokenKind {
-    LeftParenthesis,
-    RightParenthesis,
-    LeftBrace,
-    RightBrace,
-    Comma,
-    Dot,
-    Semicolon,
-
-    // Arithmetic operators
-    Plus,
-    Minus,
-    Star,
-    Slash,
-
-    // Logical and bitwise operators
-    Bang,
-    BangEqual,
-    Equal,
-    DoubleEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-    Ampersand,
-    DoubleAmpersand,
-    Pipe,
-    DoublePipe,
-
-    // Literals
-    String,
-    Number,
-    Boolean,
-    Null,
-
-    // Control flow
-    If,
-    Else,
-    While,
-    Return,
-
-    // Identifier related
-    Let,
-    Fu,
-    Identifier,
-}
-
-impl From<&TokenData> for TokenKind {
-    fn from(data: &TokenData) -> Self {
-        match data {
+impl TokenData {
+    pub fn kind(&self) -> TokenKind {
+        match self {
             TokenData::LeftParenthesis => TokenKind::LeftParenthesis,
             TokenData::RightParenthesis => TokenKind::RightParenthesis,
             TokenData::LeftBrace => TokenKind::LeftBrace,
@@ -170,4 +126,52 @@ impl From<&TokenData> for TokenKind {
             TokenData::Identifier(_) => TokenKind::Identifier,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TokenKind {
+    LeftParenthesis,
+    RightParenthesis,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Dot,
+    Semicolon,
+
+    // Arithmetic operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+
+    // Logical and bitwise operators
+    Bang,
+    BangEqual,
+    Equal,
+    DoubleEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    Ampersand,
+    DoubleAmpersand,
+    Pipe,
+    DoublePipe,
+
+    // Literals
+    String,
+    Number,
+    Boolean,
+    Null,
+
+    // Control flow
+    If,
+    Else,
+    While,
+    Return,
+
+    // Identifier related
+    Let,
+    Fu,
+    Identifier,
 }

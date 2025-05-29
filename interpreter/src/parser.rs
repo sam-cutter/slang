@@ -5,20 +5,27 @@ use std::{
 
 use crate::{
     expression::{Expression, Literal},
+    source::GeneralLocation,
     token::{TokenData, TokenKind},
     token_stream::TokenStream,
 };
 
-// TODO: figure out how to store location information here
 pub enum ParserError {
-    ExpectedToken(Vec<TokenKind>),
+    ExpectedToken {
+        expected: Vec<TokenKind>,
+        location: GeneralLocation,
+    },
 }
 
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ExpectedToken(expected) => {
-                write!(f, "Expected one of the following tokens: {:?}", expected)
+            Self::ExpectedToken { expected, location } => {
+                write!(
+                    f,
+                    "{} Expected one of the following tokens: {:?}",
+                    location, expected
+                )
             }
         }
     }
@@ -41,7 +48,51 @@ impl Parser {
         Self { tokens }
     }
 
-    pub fn expression(&mut self) -> Result<Expression, ParserError> {
+    pub fn parse(mut self) -> Result<Vec<Expression>, Vec<ParserError>> {
+        let mut expressions: Vec<Expression> = Vec::new();
+        let mut errors: Vec<ParserError> = Vec::new();
+
+        while self.tokens.peek().is_some() {
+            match self.expression() {
+                Ok(expression) => expressions.push(expression),
+                Err(error) => {
+                    errors.push(error);
+                    self.synchronize();
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(expressions)
+        } else {
+            Err(errors)
+        }
+    }
+
+    fn synchronize(&mut self) {
+        self.tokens.advance();
+
+        while let Some(token) = self.tokens.peek() {
+            match token.kind() {
+                TokenKind::Semicolon => {
+                    self.tokens.advance();
+                    return;
+                }
+
+                TokenKind::Fu
+                | TokenKind::Let
+                | TokenKind::If
+                | TokenKind::While
+                | TokenKind::Return => return,
+
+                _ => {
+                    self.tokens.advance();
+                }
+            }
+        }
+    }
+
+    fn expression(&mut self) -> Result<Expression, ParserError> {
         self.equality()
     }
 
@@ -151,8 +202,16 @@ impl Parser {
 
                 _ => unreachable!(),
             })
+        } else if let Some(token) = self.tokens.peek() {
+            Err(ParserError::ExpectedToken {
+                expected: expected.to_vec(),
+                location: GeneralLocation::Location(token.start()),
+            })
         } else {
-            Err(ParserError::ExpectedToken(expected.to_vec()))
+            Err(ParserError::ExpectedToken {
+                expected: expected.to_vec(),
+                location: GeneralLocation::EndOfFile,
+            })
         }
     }
 }

@@ -13,7 +13,7 @@ mod token_stream;
 fn main() {
     let source = Source::new(
         r#"
-        1 + 2 * 3 - 4 / 5
+        1 / 2
     "#,
     );
 
@@ -31,10 +31,18 @@ fn main() {
 
     let tokens = TokenStream::new(tokens);
 
-    let mut parser = Parser::new(tokens);
+    let parser = Parser::new(tokens);
 
-    match parser.expression() {
-        Ok(expression) => println!("{:#?}", expression),
-        Err(error) => println!("{:?}", error),
+    match parser.parse() {
+        Ok(expressions) => {
+            for expression in expressions {
+                println!("{:#?}", expression);
+            }
+        }
+        Err(errors) => {
+            for error in errors {
+                eprintln!("{:?}", error);
+            }
+        }
     }
 }
