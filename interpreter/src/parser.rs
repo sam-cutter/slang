@@ -183,8 +183,6 @@ impl Parser {
         if let Some(token) = self.tokens.matches(&expected) {
             Ok(match token.data() {
                 TokenData::LeftParenthesis => {
-                    self.tokens.advance();
-
                     let expression = self.expression()?;
 
                     self.tokens.consume(TokenKind::RightParenthesis)?;

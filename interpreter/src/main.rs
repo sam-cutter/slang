@@ -13,7 +13,7 @@ mod token_stream;
 fn main() {
     let source = Source::new(
         r#"
-        1 / 2
+        (1 + 2) / 3
     "#,
     );
 
