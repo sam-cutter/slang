@@ -114,7 +114,7 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Result<Expression, ParserError> {
-        let mut expression = self.term()?;
+        let mut expression = self.bitwise()?;
 
         while let Some(operator) = self.tokens.matches(&[
             TokenKind::Greater,
@@ -122,6 +122,23 @@ impl Parser {
             TokenKind::Less,
             TokenKind::LessEqual,
         ]) {
+            expression = Expression::Binary {
+                left: Box::new(expression),
+                operator,
+                right: Box::new(self.bitwise()?),
+            }
+        }
+
+        Ok(expression)
+    }
+
+    fn bitwise(&mut self) -> Result<Expression, ParserError> {
+        let mut expression = self.term()?;
+
+        while let Some(operator) = self
+            .tokens
+            .matches(&[TokenKind::Ampersand, TokenKind::Pipe])
+        {
             expression = Expression::Binary {
                 left: Box::new(expression),
                 operator,
