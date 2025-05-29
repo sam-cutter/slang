@@ -38,6 +38,8 @@ pub enum TokenData {
     Comma,
     Dot,
     Semicolon,
+    QuestionMark,
+    Colon,
 
     // Arithmetic operators
     Plus,
@@ -87,6 +89,8 @@ impl TokenData {
             TokenData::Comma => TokenKind::Comma,
             TokenData::Dot => TokenKind::Dot,
             TokenData::Semicolon => TokenKind::Semicolon,
+            TokenData::QuestionMark => TokenKind::QuestionMark,
+            TokenData::Colon => TokenKind::Colon,
 
             // Arithmetic operators
             TokenData::Plus => TokenKind::Plus,
@@ -137,6 +141,8 @@ pub enum TokenKind {
     Comma,
     Dot,
     Semicolon,
+    QuestionMark,
+    Colon,
 
     // Arithmetic operators
     Plus,

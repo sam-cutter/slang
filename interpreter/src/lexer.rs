@@ -80,6 +80,8 @@ impl Lexer {
                 ',' => Ok(self.add_token(TokenData::Comma)),
                 '.' => Ok(self.add_token(TokenData::Dot)),
                 ';' => Ok(self.add_token(TokenData::Semicolon)),
+                '?' => Ok(self.add_token(TokenData::QuestionMark)),
+                ':' => Ok(self.add_token(TokenData::Colon)),
 
                 // Arithmetic operators
                 '+' => Ok(self.add_token(TokenData::Plus)),
