@@ -2,6 +2,11 @@ use crate::token::Token;
 
 #[derive(Debug)]
 pub enum Expression {
+    Ternary {
+        condition: Box<Expression>,
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
     Binary {
         left: Box<Expression>,
         operator: Token,

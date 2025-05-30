@@ -93,7 +93,27 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expression, ParserError> {
-        self.equality()
+        self.ternary()
+    }
+
+    fn ternary(&mut self) -> Result<Expression, ParserError> {
+        let mut expression = self.equality()?;
+
+        if self.tokens.matches(&[TokenKind::QuestionMark]).is_some() {
+            let left = self.equality()?;
+
+            self.tokens.consume(TokenKind::Colon)?;
+
+            let right = self.equality()?;
+
+            expression = Expression::Ternary {
+                condition: Box::new(expression),
+                left: Box::new(left),
+                right: Box::new(right),
+            }
+        }
+
+        Ok(expression)
     }
 
     fn equality(&mut self) -> Result<Expression, ParserError> {
