@@ -15,6 +15,10 @@ pub enum ParserError {
         expected: Vec<TokenKind>,
         location: GeneralLocation,
     },
+    UnsupportedUnaryExpression {
+        operator: TokenKind,
+        location: GeneralLocation,
+    },
 }
 
 impl Display for ParserError {
@@ -25,6 +29,27 @@ impl Display for ParserError {
                     f,
                     "{} Expected one of the following tokens: {:?}",
                     location, expected
+                )
+            }
+            Self::UnsupportedUnaryExpression { operator, location } => {
+                write!(
+                    f,
+                    "{} The unary `{}` operator is not supported.",
+                    location,
+                    match operator {
+                        TokenKind::Plus => "+",
+                        TokenKind::Star => "*",
+                        TokenKind::Slash => "/",
+                        TokenKind::BangEqual => "!=",
+                        TokenKind::DoubleEqual => "==",
+                        TokenKind::Greater => ">",
+                        TokenKind::GreaterEqual => ">=",
+                        TokenKind::Less => "<",
+                        TokenKind::LessEqual => "<=",
+                        TokenKind::Ampersand => "&",
+                        TokenKind::Pipe => "|",
+                        _ => unreachable!(),
+                    }
                 )
             }
         }
@@ -202,6 +227,25 @@ impl Parser {
             Ok(Expression::Unary {
                 operator: operator,
                 operand: Box::new(self.primary()?),
+            })
+        } else if let Some(operator) = self.tokens.matches(&[
+            TokenKind::Plus,
+            TokenKind::Star,
+            TokenKind::Slash,
+            TokenKind::BangEqual,
+            TokenKind::DoubleEqual,
+            TokenKind::Greater,
+            TokenKind::GreaterEqual,
+            TokenKind::Less,
+            TokenKind::LessEqual,
+            TokenKind::Ampersand,
+            TokenKind::Pipe,
+        ]) {
+            let _ = self.primary();
+
+            Err(ParserError::UnsupportedUnaryExpression {
+                operator: operator.kind(),
+                location: GeneralLocation::Location(operator.start()),
             })
         } else {
             self.primary()
