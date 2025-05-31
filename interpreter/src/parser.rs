@@ -15,8 +15,9 @@ pub enum ParserError {
         expected: Vec<TokenKind>,
         location: GeneralLocation,
     },
+    // TODO: consider storing the token kind instead
     UnsupportedUnaryExpression {
-        operator: TokenKind,
+        operator: TokenData,
         location: GeneralLocation,
     },
 }
@@ -36,20 +37,7 @@ impl Display for ParserError {
                     f,
                     "{} The unary `{}` operator is not supported.",
                     location,
-                    match operator {
-                        TokenKind::Plus => "+",
-                        TokenKind::Star => "*",
-                        TokenKind::Slash => "/",
-                        TokenKind::BangEqual => "!=",
-                        TokenKind::DoubleEqual => "==",
-                        TokenKind::Greater => ">",
-                        TokenKind::GreaterEqual => ">=",
-                        TokenKind::Less => "<",
-                        TokenKind::LessEqual => "<=",
-                        TokenKind::Ampersand => "&",
-                        TokenKind::Pipe => "|",
-                        _ => unreachable!(),
-                    }
+                    operator.raw(),
                 )
             }
         }
@@ -244,8 +232,8 @@ impl Parser {
             let _ = self.primary();
 
             Err(ParserError::UnsupportedUnaryExpression {
-                operator: operator.kind(),
                 location: GeneralLocation::Location(operator.start()),
+                operator: operator.data(),
             })
         } else {
             self.primary()

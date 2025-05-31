@@ -181,3 +181,52 @@ pub enum TokenKind {
     Fu,
     Identifier,
 }
+
+impl TokenData {
+    pub fn raw(&self) -> String {
+        match self {
+            TokenData::LeftParenthesis => "(",
+            TokenData::RightParenthesis => ")",
+            TokenData::LeftBrace => "{",
+            TokenData::RightBrace => "}",
+            TokenData::Comma => ",",
+            TokenData::Dot => ".",
+            TokenData::Semicolon => ";",
+            TokenData::QuestionMark => "?",
+            TokenData::Colon => ":",
+
+            TokenData::Plus => "+",
+            TokenData::Minus => "-",
+            TokenData::Star => "*",
+            TokenData::Slash => "/",
+
+            TokenData::Bang => "!",
+            TokenData::BangEqual => "!=",
+            TokenData::Equal => "=",
+            TokenData::DoubleEqual => "==",
+            TokenData::Greater => ">",
+            TokenData::GreaterEqual => ">=",
+            TokenData::Less => "<",
+            TokenData::LessEqual => "<=",
+            TokenData::Ampersand => "&",
+            TokenData::DoubleAmpersand => "&&",
+            TokenData::Pipe => "|",
+            TokenData::DoublePipe => "||",
+
+            TokenData::Null => "null",
+            TokenData::If => "if",
+            TokenData::Else => "else",
+            TokenData::While => "while",
+            TokenData::Return => "return",
+            TokenData::Let => "let",
+            TokenData::Fu => "fu",
+
+            // For variants with data, handle separately
+            TokenData::String(string) => return format!("\"{}\"", string),
+            TokenData::Number(number) => return number.to_string(),
+            TokenData::Boolean(boolean) => return boolean.to_string(),
+            TokenData::Identifier(identifier) => return identifier.clone(),
+        }
+        .to_string()
+    }
+}
