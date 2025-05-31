@@ -1,3 +1,4 @@
+use expression::Literal;
 use lexer::Lexer;
 use parser::Parser;
 use source::Source;
@@ -66,6 +67,8 @@ fn run(source: &str) {
         eprintln!("{:?}", error);
     }
 
+    println!();
+
     let tokens = TokenStream::new(tokens);
 
     let parser = Parser::new(tokens);
@@ -73,7 +76,12 @@ fn run(source: &str) {
     match parser.parse() {
         Ok(expressions) => {
             for expression in expressions {
-                println!("{:#?}", expression);
+                println!("{:?}", &expression);
+                println!();
+
+                if let Ok(literal) = expression.evaluate() {
+                    println!("{:?}", literal)
+                }
             }
         }
         Err(errors) => {
