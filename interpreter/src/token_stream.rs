@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
 
 use crate::{
+    expression::{BinaryOperator, UnaryOperator},
     parser::ParserError,
-    source::GeneralLocation,
+    source::{GeneralLocation, Location},
     token::{Token, TokenKind},
 };
 
@@ -37,13 +38,53 @@ impl TokenStream {
         None
     }
 
+    pub fn binary_operator(
+        &mut self,
+        targets: &[BinaryOperator],
+    ) -> Option<(BinaryOperator, Location)> {
+        if let Some(next) = self.peek() {
+            let location = next.location();
+
+            if let Some(operator) = next.kind().binary_operator() {
+                for target in targets {
+                    if target == &operator {
+                        self.advance();
+                        return Some((operator, location));
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn unary_operator(
+        &mut self,
+        targets: &[UnaryOperator],
+    ) -> Option<(UnaryOperator, Location)> {
+        if let Some(next) = self.peek() {
+            let location = next.location();
+
+            if let Some(operator) = next.kind().unary_operator() {
+                for target in targets {
+                    if target == &operator {
+                        self.advance();
+                        return Some((operator, location));
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn consume(&mut self, kind: TokenKind) -> Result<Token, ParserError> {
         if let Some(token) = self.matches(&[kind]) {
             Ok(token)
         } else if let Some(token) = self.peek() {
             Err(ParserError::ExpectedToken {
                 expected: vec![kind],
-                location: GeneralLocation::Location(token.start()),
+                location: GeneralLocation::Location(token.location()),
             })
         } else {
             Err(ParserError::ExpectedToken {

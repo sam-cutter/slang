@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    expression::{Expression, Literal},
+    expression::{BinaryOperator, Expression, Literal, UnaryOperator},
     source::GeneralLocation,
     token::{TokenData, TokenKind},
     token_stream::TokenStream,
@@ -15,9 +15,8 @@ pub enum ParserError {
         expected: Vec<TokenKind>,
         location: GeneralLocation,
     },
-    // TODO: consider storing the token kind instead
     UnsupportedUnaryExpression {
-        operator: TokenData,
+        operator: BinaryOperator,
         location: GeneralLocation,
     },
 }
@@ -132,9 +131,9 @@ impl Parser {
     fn equality(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.comparison()?;
 
-        while let Some(operator) = self
+        while let Some((operator, _)) = self
             .tokens
-            .matches(&[TokenKind::BangEqual, TokenKind::DoubleEqual])
+            .binary_operator(&[BinaryOperator::NotEqualTo, BinaryOperator::EqualTo])
         {
             expression = Expression::Binary {
                 left: Box::new(expression),
@@ -149,11 +148,11 @@ impl Parser {
     fn comparison(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.bitwise()?;
 
-        while let Some(operator) = self.tokens.matches(&[
-            TokenKind::Greater,
-            TokenKind::GreaterEqual,
-            TokenKind::Less,
-            TokenKind::LessEqual,
+        while let Some((operator, _)) = self.tokens.binary_operator(&[
+            BinaryOperator::GreaterThan,
+            BinaryOperator::GreaterThanOrEqualTo,
+            BinaryOperator::LessThan,
+            BinaryOperator::LessThanOrEqualTo,
         ]) {
             expression = Expression::Binary {
                 left: Box::new(expression),
@@ -168,9 +167,9 @@ impl Parser {
     fn bitwise(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.term()?;
 
-        while let Some(operator) = self
+        while let Some((operator, _)) = self
             .tokens
-            .matches(&[TokenKind::Ampersand, TokenKind::Pipe])
+            .binary_operator(&[BinaryOperator::BitwiseAND, BinaryOperator::BitwiseOR])
         {
             expression = Expression::Binary {
                 left: Box::new(expression),
@@ -185,7 +184,10 @@ impl Parser {
     fn term(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.factor()?;
 
-        while let Some(operator) = self.tokens.matches(&[TokenKind::Plus, TokenKind::Minus]) {
+        while let Some((operator, _)) = self
+            .tokens
+            .binary_operator(&[BinaryOperator::Add, BinaryOperator::Subtract])
+        {
             expression = Expression::Binary {
                 left: Box::new(expression),
                 operator,
@@ -199,7 +201,10 @@ impl Parser {
     fn factor(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.unary()?;
 
-        while let Some(operator) = self.tokens.matches(&[TokenKind::Star, TokenKind::Slash]) {
+        while let Some((operator, _)) = self
+            .tokens
+            .binary_operator(&[BinaryOperator::Multiply, BinaryOperator::Divide])
+        {
             expression = Expression::Binary {
                 left: Box::new(expression),
                 operator,
@@ -211,29 +216,32 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expression, ParserError> {
-        if let Some(operator) = self.tokens.matches(&[TokenKind::Bang, TokenKind::Minus]) {
+        if let Some((operator, _)) = self
+            .tokens
+            .unary_operator(&[UnaryOperator::Minus, UnaryOperator::NOT])
+        {
             Ok(Expression::Unary {
                 operator: operator,
                 operand: Box::new(self.primary()?),
             })
-        } else if let Some(operator) = self.tokens.matches(&[
-            TokenKind::Plus,
-            TokenKind::Star,
-            TokenKind::Slash,
-            TokenKind::BangEqual,
-            TokenKind::DoubleEqual,
-            TokenKind::Greater,
-            TokenKind::GreaterEqual,
-            TokenKind::Less,
-            TokenKind::LessEqual,
-            TokenKind::Ampersand,
-            TokenKind::Pipe,
+        } else if let Some((operator, location)) = self.tokens.binary_operator(&[
+            BinaryOperator::Add,
+            BinaryOperator::Multiply,
+            BinaryOperator::Divide,
+            BinaryOperator::NotEqualTo,
+            BinaryOperator::EqualTo,
+            BinaryOperator::GreaterThan,
+            BinaryOperator::GreaterThanOrEqualTo,
+            BinaryOperator::LessThan,
+            BinaryOperator::LessThanOrEqualTo,
+            BinaryOperator::BitwiseAND,
+            BinaryOperator::BitwiseOR,
         ]) {
             let _ = self.primary();
 
             Err(ParserError::UnsupportedUnaryExpression {
-                location: GeneralLocation::Location(operator.start()),
-                operator: operator.data(),
+                location: GeneralLocation::Location(location),
+                operator: operator,
             })
         } else {
             self.primary()
@@ -272,7 +280,7 @@ impl Parser {
         } else if let Some(token) = self.tokens.peek() {
             Err(ParserError::ExpectedToken {
                 expected: expected.to_vec(),
-                location: GeneralLocation::Location(token.start()),
+                location: GeneralLocation::Location(token.location()),
             })
         } else {
             Err(ParserError::ExpectedToken {

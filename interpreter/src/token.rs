@@ -1,17 +1,20 @@
-use crate::source::Location;
+use crate::{
+    expression::{BinaryOperator, UnaryOperator},
+    source::Location,
+};
 
 #[derive(Debug)]
 pub struct Token {
     data: TokenData,
-    start: Location,
+    location: Location,
     length: usize,
 }
 
 impl Token {
-    pub fn new(data: TokenData, start: Location, length: usize) -> Self {
+    pub fn new(data: TokenData, location: Location, length: usize) -> Self {
         Self {
             data,
-            start,
+            location,
             length,
         }
     }
@@ -20,8 +23,8 @@ impl Token {
         self.data.kind()
     }
 
-    pub fn start(&self) -> Location {
-        self.start
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn data(self) -> TokenData {
@@ -182,51 +185,34 @@ pub enum TokenKind {
     Identifier,
 }
 
-impl TokenData {
-    pub fn raw(&self) -> String {
-        match self {
-            TokenData::LeftParenthesis => "(",
-            TokenData::RightParenthesis => ")",
-            TokenData::LeftBrace => "{",
-            TokenData::RightBrace => "}",
-            TokenData::Comma => ",",
-            TokenData::Dot => ".",
-            TokenData::Semicolon => ";",
-            TokenData::QuestionMark => "?",
-            TokenData::Colon => ":",
+impl TokenKind {
+    pub fn binary_operator(&self) -> Option<BinaryOperator> {
+        Some(match self {
+            Self::Plus => BinaryOperator::Add,
+            Self::Minus => BinaryOperator::Subtract,
+            Self::Star => BinaryOperator::Multiply,
+            Self::Slash => BinaryOperator::Divide,
 
-            TokenData::Plus => "+",
-            TokenData::Minus => "-",
-            TokenData::Star => "*",
-            TokenData::Slash => "/",
+            Self::DoubleEqual => BinaryOperator::EqualTo,
+            Self::BangEqual => BinaryOperator::NotEqualTo,
+            Self::Greater => BinaryOperator::GreaterThan,
+            Self::GreaterEqual => BinaryOperator::GreaterThanOrEqualTo,
+            Self::Less => BinaryOperator::LessThan,
+            Self::LessEqual => BinaryOperator::LessThanOrEqualTo,
 
-            TokenData::Bang => "!",
-            TokenData::BangEqual => "!=",
-            TokenData::Equal => "=",
-            TokenData::DoubleEqual => "==",
-            TokenData::Greater => ">",
-            TokenData::GreaterEqual => ">=",
-            TokenData::Less => "<",
-            TokenData::LessEqual => "<=",
-            TokenData::Ampersand => "&",
-            TokenData::DoubleAmpersand => "&&",
-            TokenData::Pipe => "|",
-            TokenData::DoublePipe => "||",
+            Self::Ampersand => BinaryOperator::BitwiseAND,
+            Self::Pipe => BinaryOperator::BitwiseOR,
 
-            TokenData::Null => "null",
-            TokenData::If => "if",
-            TokenData::Else => "else",
-            TokenData::While => "while",
-            TokenData::Return => "return",
-            TokenData::Let => "let",
-            TokenData::Fu => "fu",
+            _ => return None,
+        })
+    }
 
-            // For variants with data, handle separately
-            TokenData::String(string) => return format!("\"{}\"", string),
-            TokenData::Number(number) => return number.to_string(),
-            TokenData::Boolean(boolean) => return boolean.to_string(),
-            TokenData::Identifier(identifier) => return identifier.clone(),
-        }
-        .to_string()
+    pub fn unary_operator(&self) -> Option<UnaryOperator> {
+        Some(match self {
+            Self::Minus => UnaryOperator::Minus,
+            Self::Bang => UnaryOperator::NOT,
+
+            _ => return None,
+        })
     }
 }

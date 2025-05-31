@@ -1,5 +1,3 @@
-use crate::token::Token;
-
 #[derive(Debug)]
 pub enum Expression {
     Ternary {
@@ -9,11 +7,11 @@ pub enum Expression {
     },
     Binary {
         left: Box<Expression>,
-        operator: Token,
+        operator: BinaryOperator,
         right: Box<Expression>,
     },
     Unary {
-        operator: Token,
+        operator: UnaryOperator,
         operand: Box<Expression>,
     },
     Grouping(Box<Expression>),
@@ -26,4 +24,53 @@ pub enum Literal {
     Number(f64),
     Boolean(bool),
     Null,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum BinaryOperator {
+    // Arithmetic operators
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+
+    // Logical operators
+    EqualTo,
+    NotEqualTo,
+    GreaterThan,
+    GreaterThanOrEqualTo,
+    LessThan,
+    LessThanOrEqualTo,
+
+    // Bitwise operators
+    BitwiseAND,
+    BitwiseOR,
+}
+
+impl BinaryOperator {
+    pub fn raw(&self) -> String {
+        match self {
+            Self::Add => "+",
+            Self::Subtract => "-",
+            Self::Multiply => "*",
+            Self::Divide => "/",
+
+            Self::EqualTo => "==",
+            Self::NotEqualTo => "!=",
+            Self::GreaterThan => ">",
+            Self::GreaterThanOrEqualTo => ">=",
+            Self::LessThan => "<",
+            Self::LessThanOrEqualTo => "<=",
+
+            Self::BitwiseAND => "&",
+            Self::BitwiseOR => "|",
+        }
+        .to_string()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum UnaryOperator {
+    Minus,
+    NOT,
 }
