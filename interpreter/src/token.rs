@@ -66,7 +66,8 @@ pub enum TokenData {
 
     // Literals
     String(String),
-    Number(f64),
+    Float(f64),
+    Integer(i32),
     Boolean(bool),
     Null,
 
@@ -117,7 +118,8 @@ impl TokenData {
 
             // Literals
             TokenData::String(_) => TokenKind::String,
-            TokenData::Number(_) => TokenKind::Number,
+            TokenData::Float(_) => TokenKind::Float,
+            TokenData::Integer(_) => TokenKind::Integer,
             TokenData::Boolean(_) => TokenKind::Boolean,
             TokenData::Null => TokenKind::Null,
 
@@ -169,7 +171,8 @@ pub enum TokenKind {
 
     // Literals
     String,
-    Number,
+    Float,
+    Integer,
     Boolean,
     Null,
 

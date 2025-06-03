@@ -1,4 +1,3 @@
-use expression::Literal;
 use lexer::Lexer;
 use parser::Parser;
 use source::Source;

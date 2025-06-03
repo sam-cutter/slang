@@ -277,11 +277,15 @@ impl Lexer {
                 number.push(character);
                 self.source.advance();
             }
+
+            let number: f64 = number.parse().unwrap();
+
+            self.add_token(TokenData::Float(number))
+        } else {
+            let number: i32 = number.parse().unwrap();
+
+            self.add_token(TokenData::Integer(number));
         }
-
-        let number: f64 = number.parse().unwrap();
-
-        self.add_token(TokenData::Number(number))
     }
 
     fn handle_word(&mut self, first_character: char) {

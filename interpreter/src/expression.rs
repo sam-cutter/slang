@@ -36,6 +36,7 @@ impl Expression {
             } => Expression::evaluate_binary(left, operator, right),
 
             Self::Unary { operator, operand } => Expression::evaluate_unary(operator, operand),
+
             Self::Grouping(expression) => expression.evaluate(),
 
             Self::Literal(literal) => Ok(literal),
@@ -65,42 +66,90 @@ impl Expression {
     ) -> Result<Literal, EvaluationError> {
         let operands = (left.evaluate()?, right.evaluate()?);
 
-        if let (Literal::Number(left), Literal::Number(right)) = operands {
-            match operator {
-                BinaryOperator::Add => return Ok(Literal::Number(left + right)),
-                BinaryOperator::Subtract => return Ok(Literal::Number(left - right)),
-                BinaryOperator::Multiply => return Ok(Literal::Number(left * right)),
+        // TODO: instead match first on operator, then on operands
+
+        if let (Literal::Integer(left), Literal::Integer(right)) = operands {
+            return Ok(match operator {
+                BinaryOperator::Add => Literal::Integer(left + right),
+                BinaryOperator::Subtract => Literal::Integer(left - right),
+                BinaryOperator::Multiply => Literal::Integer(left * right),
                 // TODO: check for a division by zero
-                BinaryOperator::Divide => return Ok(Literal::Number(left / right)),
+                BinaryOperator::Divide => Literal::Integer(left / right),
 
-                BinaryOperator::EqualTo => return Ok(Literal::Boolean(left == right)),
-                BinaryOperator::NotEqualTo => return Ok(Literal::Boolean(left != right)),
-                BinaryOperator::GreaterThan => return Ok(Literal::Boolean(left > right)),
-                BinaryOperator::GreaterThanOrEqualTo => return Ok(Literal::Boolean(left >= right)),
-                BinaryOperator::LessThan => return Ok(Literal::Boolean(left < right)),
-                BinaryOperator::LessThanOrEqualTo => return Ok(Literal::Boolean(left <= right)),
+                BinaryOperator::EqualTo => Literal::Boolean(left == right),
+                BinaryOperator::NotEqualTo => Literal::Boolean(left != right),
+                BinaryOperator::GreaterThan => Literal::Boolean(left > right),
+                BinaryOperator::GreaterThanOrEqualTo => Literal::Boolean(left >= right),
+                BinaryOperator::LessThan => Literal::Boolean(left < right),
+                BinaryOperator::LessThanOrEqualTo => Literal::Boolean(left <= right),
 
-                // TODO: bitwise operations don't work on floats, need to introduce integer type
+                BinaryOperator::BitwiseAND => Literal::Integer(left & right),
+                BinaryOperator::BitwiseOR => Literal::Integer(left | right),
+
+                // TODO: throw an error for operations which can't be performed
                 _ => todo!(),
-            }
+            });
+        } else if let (Literal::Float(left), Literal::Float(right)) = operands {
+            return Ok(match operator {
+                BinaryOperator::Add => Literal::Float(left + right),
+                BinaryOperator::Subtract => Literal::Float(left - right),
+                BinaryOperator::Multiply => Literal::Float(left * right),
+                // TODO: check for a division by zero
+                BinaryOperator::Divide => Literal::Float(left / right),
+
+                BinaryOperator::EqualTo => Literal::Boolean(left == right),
+                BinaryOperator::NotEqualTo => Literal::Boolean(left != right),
+                BinaryOperator::GreaterThan => Literal::Boolean(left > right),
+                BinaryOperator::GreaterThanOrEqualTo => Literal::Boolean(left >= right),
+                BinaryOperator::LessThan => Literal::Boolean(left < right),
+                BinaryOperator::LessThanOrEqualTo => Literal::Boolean(left <= right),
+
+                // TODO: throw an error for operations which can't be performed
+                _ => todo!(),
+            });
         } else if let (Literal::Boolean(left), Literal::Boolean(right)) = operands {
-            match operator {
-                BinaryOperator::EqualTo => return Ok(Literal::Boolean(left == right)),
-                BinaryOperator::NotEqualTo => return Ok(Literal::Boolean(left != right)),
-                BinaryOperator::AND => return Ok(Literal::Boolean(left && right)),
-                BinaryOperator::OR => return Ok(Literal::Boolean(left || right)),
+            return Ok(match operator {
+                BinaryOperator::EqualTo => Literal::Boolean(left == right),
+                BinaryOperator::NotEqualTo => Literal::Boolean(left != right),
+                BinaryOperator::AND => Literal::Boolean(left && right),
+                BinaryOperator::OR => Literal::Boolean(left || right),
 
+                // TODO: throw an error for operations which can't be performed
                 _ => todo!(),
-            }
+            });
         }
 
         todo!()
     }
-
     fn evaluate_unary(
         operator: UnaryOperator,
         operand: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
+        let operand = operand.evaluate()?;
+
+        if let Literal::Integer(integer) = operand {
+            return Ok(match operator {
+                UnaryOperator::Minus => Literal::Integer(-integer),
+
+                // TODO: throw an error for operations which can't be performed
+                _ => todo!(),
+            });
+        } else if let Literal::Float(float) = operand {
+            return Ok(match operator {
+                UnaryOperator::Minus => Literal::Float(-float),
+
+                // TODO: throw an error for operations which can't be performed
+                _ => todo!(),
+            });
+        } else if let Literal::Boolean(boolean) = operand {
+            return Ok(match operator {
+                UnaryOperator::NOT => Literal::Boolean(!boolean),
+
+                // TODO: throw an error for operations which can't be performed
+                _ => todo!(),
+            });
+        }
+
         todo!()
     }
 }
@@ -108,7 +157,8 @@ impl Expression {
 #[derive(Debug)]
 pub enum Literal {
     String(String),
-    Number(f64),
+    Float(f64),
+    Integer(i32),
     Boolean(bool),
     Null,
 }

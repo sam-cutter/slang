@@ -252,31 +252,34 @@ impl Parser {
         let expected = [
             TokenKind::LeftParenthesis,
             TokenKind::String,
-            TokenKind::Number,
+            TokenKind::Float,
+            TokenKind::Integer,
             TokenKind::Boolean,
             TokenKind::Null,
         ];
 
         if let Some(token) = self.tokens.matches(&expected) {
-            Ok(match token.data() {
+            Ok(Expression::Literal(match token.data() {
                 TokenData::LeftParenthesis => {
                     let expression = self.expression()?;
 
                     self.tokens.consume(TokenKind::RightParenthesis)?;
 
-                    Expression::Grouping(Box::new(expression))
+                    return Ok(Expression::Grouping(Box::new(expression)));
                 }
 
-                TokenData::String(string) => Expression::Literal(Literal::String(string)),
+                TokenData::String(string) => Literal::String(string),
 
-                TokenData::Number(number) => Expression::Literal(Literal::Number(number)),
+                TokenData::Float(float) => Literal::Float(float),
 
-                TokenData::Boolean(boolean) => Expression::Literal(Literal::Boolean(boolean)),
+                TokenData::Integer(integer) => Literal::Integer(integer),
 
-                TokenData::Null => Expression::Literal(Literal::Null),
+                TokenData::Boolean(boolean) => Literal::Boolean(boolean),
+
+                TokenData::Null => Literal::Null,
 
                 _ => unreachable!(),
-            })
+            }))
         } else if let Some(token) = self.tokens.peek() {
             Err(ParserError::ExpectedToken {
                 expected: expected.to_vec(),
