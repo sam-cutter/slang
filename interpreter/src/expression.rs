@@ -1,4 +1,34 @@
-pub enum EvaluationError {}
+use std::fmt::Display;
+
+pub enum EvaluationError {
+    InvalidBinaryTypes {
+        left: SlangType,
+        operator: BinaryOperator,
+        right: SlangType,
+    },
+    DivisionByZero,
+}
+
+impl Display for EvaluationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidBinaryTypes {
+                left,
+                operator,
+                right,
+            } => write!(
+                f,
+                "The `{}` operator is not defined for {} and {}",
+                operator.raw(),
+                left,
+                right
+            ),
+            Self::DivisionByZero => {
+                write!(f, "Division by zero")
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum Expression {
@@ -66,61 +96,73 @@ impl Expression {
     ) -> Result<Literal, EvaluationError> {
         let operands = (left.evaluate()?, right.evaluate()?);
 
-        // TODO: instead match first on operator, then on operands
+        return Ok(match operator {
+            BinaryOperator::Add => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left + right),
+                (Literal::Float(left), Literal::Float(right)) => Literal::Float(left + right),
+                (Literal::String(left), Literal::String(right)) => {
+                    let mut new = left;
+                    new.push_str(&right);
+                    Literal::String(new)
+                }
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
 
-        if let (Literal::Integer(left), Literal::Integer(right)) = operands {
-            return Ok(match operator {
-                BinaryOperator::Add => Literal::Integer(left + right),
-                BinaryOperator::Subtract => Literal::Integer(left - right),
-                BinaryOperator::Multiply => Literal::Integer(left * right),
-                // TODO: check for a division by zero
-                BinaryOperator::Divide => Literal::Integer(left / right),
+            BinaryOperator::Subtract => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left - right),
+                (Literal::Float(left), Literal::Float(right)) => Literal::Float(left - right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
 
-                BinaryOperator::EqualTo => Literal::Boolean(left == right),
-                BinaryOperator::NotEqualTo => Literal::Boolean(left != right),
-                BinaryOperator::GreaterThan => Literal::Boolean(left > right),
-                BinaryOperator::GreaterThanOrEqualTo => Literal::Boolean(left >= right),
-                BinaryOperator::LessThan => Literal::Boolean(left < right),
-                BinaryOperator::LessThanOrEqualTo => Literal::Boolean(left <= right),
+            BinaryOperator::Multiply => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left * right),
+                (Literal::Float(left), Literal::Float(right)) => Literal::Float(left * right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
 
-                BinaryOperator::BitwiseAND => Literal::Integer(left & right),
-                BinaryOperator::BitwiseOR => Literal::Integer(left | right),
+            BinaryOperator::Divide => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => {
+                    if right == 0 {
+                        return Err(EvaluationError::DivisionByZero);
+                    }
 
-                // TODO: throw an error for operations which can't be performed
-                _ => todo!(),
-            });
-        } else if let (Literal::Float(left), Literal::Float(right)) = operands {
-            return Ok(match operator {
-                BinaryOperator::Add => Literal::Float(left + right),
-                BinaryOperator::Subtract => Literal::Float(left - right),
-                BinaryOperator::Multiply => Literal::Float(left * right),
-                // TODO: check for a division by zero
-                BinaryOperator::Divide => Literal::Float(left / right),
+                    Literal::Integer(left / right)
+                }
+                (Literal::Float(left), Literal::Float(right)) => {
+                    if right == 0.0 {
+                        return Err(EvaluationError::DivisionByZero);
+                    }
 
-                BinaryOperator::EqualTo => Literal::Boolean(left == right),
-                BinaryOperator::NotEqualTo => Literal::Boolean(left != right),
-                BinaryOperator::GreaterThan => Literal::Boolean(left > right),
-                BinaryOperator::GreaterThanOrEqualTo => Literal::Boolean(left >= right),
-                BinaryOperator::LessThan => Literal::Boolean(left < right),
-                BinaryOperator::LessThanOrEqualTo => Literal::Boolean(left <= right),
+                    Literal::Float(left / right)
+                }
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
 
-                // TODO: throw an error for operations which can't be performed
-                _ => todo!(),
-            });
-        } else if let (Literal::Boolean(left), Literal::Boolean(right)) = operands {
-            return Ok(match operator {
-                BinaryOperator::EqualTo => Literal::Boolean(left == right),
-                BinaryOperator::NotEqualTo => Literal::Boolean(left != right),
-                BinaryOperator::AND => Literal::Boolean(left && right),
-                BinaryOperator::OR => Literal::Boolean(left || right),
-
-                // TODO: throw an error for operations which can't be performed
-                _ => todo!(),
-            });
-        }
-
-        todo!()
+            BinaryOperator::EqualTo => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => {
+                    Literal::Boolean(left == right)
+                }
+                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left == right),
+            },
+        });
     }
+
     fn evaluate_unary(
         operator: UnaryOperator,
         operand: Box<Expression>,
@@ -161,6 +203,39 @@ pub enum Literal {
     Integer(i32),
     Boolean(bool),
     Null,
+}
+
+impl Literal {
+    pub fn slang_type(&self) -> SlangType {
+        match self {
+            Self::String(_) => SlangType::String,
+            Self::Float(_) => SlangType::Float,
+            Self::Integer(_) => SlangType::Integer,
+            Self::Boolean(_) => SlangType::Boolean,
+            Self::Null => SlangType::Null,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SlangType {
+    String,
+    Float,
+    Integer,
+    Boolean,
+    Null,
+}
+
+impl Display for SlangType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::String => write!(f, "String"),
+            Self::Float => write!(f, "Float"),
+            Self::Integer => write!(f, "Integer"),
+            Self::Boolean => write!(f, "Boolean"),
+            Self::Null => write!(f, "null"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
