@@ -1,4 +1,4 @@
-use std::{collections::btree_set::Intersection, fmt::Display};
+use std::fmt::Display;
 
 pub enum EvaluationError {
     InvalidBinaryTypes {
@@ -25,19 +25,24 @@ impl Display for EvaluationError {
                 right,
             } => write!(
                 f,
-                "The `{}` operator is not defined for {} and {}",
+                "The `{}` operator is not defined for {} and {}.",
                 operator.raw(),
                 left,
                 right
             ),
             Self::InvalidUnaryType { operator, operand } => write!(
                 f,
-                "The {} operator is not defined for {}",
+                "The {} operator is not defined for {}.",
                 operator.raw(),
                 operand
             ),
+            Self::NonBooleanTernaryCondition { condition } => write!(
+                f,
+                "Expected Boolean operand for ternary condition, found {}.",
+                condition
+            ),
             Self::DivisionByZero => {
-                write!(f, "Division by zero")
+                write!(f, "Division by zero.")
             }
         }
     }
@@ -91,14 +96,18 @@ impl Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        if let Literal::Boolean(condition) = condition.evaluate()? {
+        let condition = condition.evaluate()?;
+
+        if let Literal::Boolean(condition) = condition {
             if condition {
                 return left.evaluate();
             } else {
                 return right.evaluate();
             }
         } else {
-            return;
+            return Err(EvaluationError::NonBooleanTernaryCondition {
+                condition: condition.slang_type(),
+            });
         }
     }
 

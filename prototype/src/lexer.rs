@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    source::{Location, Source},
+    source::{GeneralLocation, Location, Source},
     token::{Token, TokenData},
 };
 
@@ -13,6 +13,9 @@ pub enum LexerError {
         location: Location,
         character: char,
         expected: Option<char>,
+    },
+    UnexpectedEndOfFile {
+        expected: char,
     },
     UnknownKeyword {
         location: Location,
@@ -37,6 +40,14 @@ impl Display for LexerError {
                     None => String::new(),
                 }
             ),
+            Self::UnexpectedEndOfFile { expected } => {
+                write!(
+                    f,
+                    "{} Reached end of file, but expected `{}`",
+                    GeneralLocation::EndOfFile,
+                    expected
+                )
+            }
             Self::UnknownKeyword { location, keyword } => {
                 write!(f, "{} Unexpected keyword: `{}`", location, keyword)
             }
@@ -85,7 +96,7 @@ impl Lexer {
 
                 // Logical and bitwise operators
                 '!' => Ok(self.handle_bang()),
-                '=' => Ok(self.handle_equal()),
+                '=' => self.handle_equal(),
                 '>' => Ok(self.handle_greater()),
                 '<' => Ok(self.handle_less()),
                 '&' => Ok(self.handle_ampersand()),
@@ -135,11 +146,20 @@ impl Lexer {
         }
     }
 
-    fn handle_equal(&mut self) {
-        if self.source.matches('=') {
-            self.add_token(TokenData::DoubleEqual);
+    fn handle_equal(&mut self) -> Result<(), LexerError> {
+        if let Some(character) = self.source.peek() {
+            if character == '=' {
+                self.source.advance();
+                Ok(self.add_token(TokenData::DoubleEqual))
+            } else {
+                Err(LexerError::UnexpectedCharacter {
+                    location: self.current_token_start,
+                    character,
+                    expected: Some('='),
+                })
+            }
         } else {
-            self.add_token(TokenData::Equal);
+            Err(LexerError::UnexpectedEndOfFile { expected: '=' })
         }
     }
 

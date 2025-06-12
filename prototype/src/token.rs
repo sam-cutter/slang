@@ -48,7 +48,6 @@ pub enum TokenData {
     // Logical and bitwise operators
     Bang,
     BangEqual,
-    Equal,
     DoubleEqual,
     Greater,
     GreaterEqual,
@@ -82,7 +81,6 @@ impl TokenData {
             // Logical and bitwise operators
             TokenData::Bang => TokenKind::Bang,
             TokenData::BangEqual => TokenKind::BangEqual,
-            TokenData::Equal => TokenKind::Equal,
             TokenData::DoubleEqual => TokenKind::DoubleEqual,
             TokenData::Greater => TokenKind::Greater,
             TokenData::GreaterEqual => TokenKind::GreaterEqual,
@@ -117,7 +115,6 @@ pub enum TokenKind {
     // Logical and bitwise operators
     Bang,
     BangEqual,
-    Equal,
     DoubleEqual,
     Greater,
     GreaterEqual,
@@ -142,15 +139,17 @@ impl TokenKind {
             Self::Star => BinaryOperator::Multiply,
             Self::Slash => BinaryOperator::Divide,
 
-            Self::DoubleEqual => BinaryOperator::EqualTo,
             Self::BangEqual => BinaryOperator::NotEqualTo,
+            Self::DoubleEqual => BinaryOperator::EqualTo,
             Self::Greater => BinaryOperator::GreaterThan,
             Self::GreaterEqual => BinaryOperator::GreaterThanOrEqualTo,
             Self::Less => BinaryOperator::LessThan,
             Self::LessEqual => BinaryOperator::LessThanOrEqualTo,
 
             Self::Ampersand => BinaryOperator::BitwiseAND,
+            Self::DoubleAmpersand => BinaryOperator::AND,
             Self::Pipe => BinaryOperator::BitwiseOR,
+            Self::DoublePipe => BinaryOperator::OR,
 
             _ => return None,
         })

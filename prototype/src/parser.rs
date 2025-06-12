@@ -60,24 +60,8 @@ impl Parser {
         Self { tokens }
     }
 
-    pub fn parse(mut self) -> Result<Vec<Expression>, Vec<ParserError>> {
-        let mut expressions: Vec<Expression> = Vec::new();
-        let mut errors: Vec<ParserError> = Vec::new();
-
-        while self.tokens.peek().is_some() {
-            match self.expression() {
-                Ok(expression) => expressions.push(expression),
-                Err(error) => {
-                    errors.push(error);
-                }
-            }
-        }
-
-        if errors.is_empty() {
-            Ok(expressions)
-        } else {
-            Err(errors)
-        }
+    pub fn parse(mut self) -> Result<Expression, ParserError> {
+        self.expression()
     }
 
     fn expression(&mut self) -> Result<Expression, ParserError> {
@@ -85,19 +69,36 @@ impl Parser {
     }
 
     fn ternary(&mut self) -> Result<Expression, ParserError> {
-        let mut expression = self.equality()?;
+        let mut expression = self.logical()?;
 
         if self.tokens.matches(&[TokenKind::QuestionMark]).is_some() {
-            let left = self.equality()?;
+            let left = self.logical()?;
 
             self.tokens.consume(TokenKind::Colon)?;
 
-            let right = self.equality()?;
+            let right = self.logical()?;
 
             expression = Expression::Ternary {
                 condition: Box::new(expression),
                 left: Box::new(left),
                 right: Box::new(right),
+            }
+        }
+
+        Ok(expression)
+    }
+
+    fn logical(&mut self) -> Result<Expression, ParserError> {
+        let mut expression = self.equality()?;
+
+        while let Some((operator, _)) = self
+            .tokens
+            .binary_operator(&[BinaryOperator::AND, BinaryOperator::OR])
+        {
+            expression = Expression::Binary {
+                left: Box::new(expression),
+                operator: operator,
+                right: Box::new(self.equality()?),
             }
         }
 
