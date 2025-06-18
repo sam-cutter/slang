@@ -131,11 +131,7 @@ impl Lexer {
     }
 
     fn add_token(&mut self, data: TokenData) {
-        self.tokens.push(Token::new(
-            data,
-            self.current_token_start,
-            self.source.location().index - self.current_token_start.index,
-        ));
+        self.tokens.push(Token::new(data, self.current_token_start));
     }
 
     fn handle_bang(&mut self) {

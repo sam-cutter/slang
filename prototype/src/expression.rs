@@ -25,24 +25,24 @@ impl Display for EvaluationError {
                 right,
             } => write!(
                 f,
-                "The `{}` operator is not defined for {} and {}.",
+                "[evaluation error] The `{}` operator is not defined for {} and {}.",
                 operator.raw(),
                 left,
                 right
             ),
             Self::InvalidUnaryType { operator, operand } => write!(
                 f,
-                "The {} operator is not defined for {}.",
+                "[evaluation error] The unary {} operator is not defined for {}.",
                 operator.raw(),
                 operand
             ),
             Self::NonBooleanTernaryCondition { condition } => write!(
                 f,
-                "Expected Boolean operand for ternary condition, found {}.",
+                "[evaluation error] Expected Boolean operand for ternary condition, found {}.",
                 condition
             ),
             Self::DivisionByZero => {
-                write!(f, "Division by zero.")
+                write!(f, "[evaluation error] Division by zero.")
             }
         }
     }
@@ -190,7 +190,7 @@ impl Expression {
                 (Literal::Integer(left), Literal::Integer(right)) => {
                     Literal::Boolean(left != right)
                 }
-                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left == right),
+                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left != right),
                 (Literal::Boolean(left), Literal::Boolean(right)) => {
                     Literal::Boolean(left != right)
                 }

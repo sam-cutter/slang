@@ -86,10 +86,6 @@ impl Source {
         false
     }
 
-    pub fn at_end(&self) -> bool {
-        self.location.index >= self.text.len()
-    }
-
     pub fn location(&self) -> Location {
         self.location
     }

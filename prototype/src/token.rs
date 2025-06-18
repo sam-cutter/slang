@@ -7,16 +7,11 @@ use crate::{
 pub struct Token {
     data: TokenData,
     location: Location,
-    length: usize,
 }
 
 impl Token {
-    pub fn new(data: TokenData, location: Location, length: usize) -> Self {
-        Self {
-            data,
-            location,
-            length,
-        }
+    pub fn new(data: TokenData, location: Location) -> Self {
+        Self { data, location }
     }
 
     pub fn kind(&self) -> TokenKind {

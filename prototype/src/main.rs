@@ -11,17 +11,18 @@ mod token;
 mod token_stream;
 
 use std::{
-    env, fs,
+    env,
     io::{self, BufRead, Write},
 };
 
 fn main() {
-    let args = &env::args().collect::<Vec<String>>()[..];
+    // The first argument is always the executable path (e.g. /bin/slang)
+    let args = env::args().skip(1);
 
-    match args {
-        [_executable] => run_prompt(),
-        [_executable, filename] => run_file(filename),
-        _ => println!("Usage: slang [filename]"),
+    if args.len() == 0 {
+        run_prompt();
+    } else {
+        println!("No arguments expected.");
     }
 }
 
@@ -34,20 +35,11 @@ fn run_prompt() {
     loop {
         line.clear();
 
-        print!("> ");
+        print!("\n> ");
         let _ = stdout.flush();
         let _ = stdin.read_line(&mut line);
 
         run(line.trim());
-    }
-}
-
-fn run_file(filename: &str) {
-    let contents = fs::read_to_string(filename);
-
-    match contents {
-        Ok(source) => run(&source),
-        Err(_) => return,
     }
 }
 
@@ -65,8 +57,6 @@ fn run(source: &str) {
     if errors.len() != 0 {
         return;
     }
-
-    println!();
 
     let tokens = TokenStream::new(tokens);
 
