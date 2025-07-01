@@ -204,7 +204,9 @@ impl TokenKind {
             Self::LessEqual => BinaryOperator::LessThanOrEqualTo,
 
             Self::Ampersand => BinaryOperator::BitwiseAND,
+            Self::DoubleAmpersand => BinaryOperator::AND,
             Self::Pipe => BinaryOperator::BitwiseOR,
+            Self::DoublePipe => BinaryOperator::OR,
 
             _ => return None,
         })

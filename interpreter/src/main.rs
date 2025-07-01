@@ -58,15 +58,13 @@ fn run(source: &str) {
 
     let (tokens, errors) = lexer.lex();
 
-    for token in &tokens {
-        println!("{:?}", token);
-    }
-
     for error in &errors {
         eprintln!("{:?}", error);
     }
 
-    println!();
+    if errors.len() != 0 {
+        return;
+    }
 
     let tokens = TokenStream::new(tokens);
 
@@ -75,11 +73,9 @@ fn run(source: &str) {
     match parser.parse() {
         Ok(expressions) => {
             for expression in expressions {
-                println!("{:?}", &expression);
-                println!();
-
-                if let Ok(literal) = expression.evaluate() {
-                    println!("{:?}", literal)
+                match expression.evaluate() {
+                    Ok(literal) => println!("{:?}", literal),
+                    Err(error) => eprintln!("{:?}", error),
                 }
             }
         }

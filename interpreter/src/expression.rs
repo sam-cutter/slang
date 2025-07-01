@@ -1,10 +1,21 @@
-use std::fmt::Display;
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
+};
 
 pub enum EvaluationError {
+    NonBooleanTernaryCondition {
+        condition: SlangType,
+    },
     InvalidBinaryTypes {
         left: SlangType,
         operator: BinaryOperator,
         right: SlangType,
+    },
+    InvalidUnaryType {
+        operator: UnaryOperator,
+
+        operand: SlangType,
     },
     DivisionByZero,
 }
@@ -12,23 +23,42 @@ pub enum EvaluationError {
 impl Display for EvaluationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::NonBooleanTernaryCondition { condition } => write!(
+                f,
+                "[evaluation error] Expected Boolean operand for ternary condition, found {}.",
+                condition
+            ),
             Self::InvalidBinaryTypes {
                 left,
                 operator,
                 right,
             } => write!(
                 f,
-                "The `{}` operator is not defined for {} and {}",
+                "[evaluation error] The `{}` operator is not defined for {} and {}.",
                 operator.raw(),
                 left,
                 right
             ),
+            Self::InvalidUnaryType { operator, operand } => write!(
+                f,
+                "[evaluation error] The unary {} operator is not defined for {}.",
+                operator.raw(),
+                operand
+            ),
             Self::DivisionByZero => {
-                write!(f, "Division by zero")
+                write!(f, "[evaluation error] Division by zero.")
             }
         }
     }
 }
+
+impl Debug for EvaluationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl Error for EvaluationError {}
 
 #[derive(Debug)]
 pub enum Expression {
@@ -78,15 +108,19 @@ impl Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        if let Literal::Boolean(condition) = condition.evaluate()? {
+        let condition = condition.evaluate()?;
+
+        if let Literal::Boolean(condition) = condition {
             if condition {
                 return left.evaluate();
             } else {
                 return right.evaluate();
             }
+        } else {
+            return Err(EvaluationError::NonBooleanTernaryCondition {
+                condition: condition.slang_type(),
+            });
         }
-
-        todo!()
     }
 
     fn evaluate_binary(
@@ -96,7 +130,7 @@ impl Expression {
     ) -> Result<Literal, EvaluationError> {
         let operands = (left.evaluate()?, right.evaluate()?);
 
-        return Ok(match operator {
+        Ok(match operator {
             BinaryOperator::Add => match operands {
                 (Literal::String(left), Literal::String(right)) => {
                     let mut new = left;
@@ -169,7 +203,114 @@ impl Expression {
                     right: right.slang_type(),
                 })?,
             },
-        });
+
+            BinaryOperator::NotEqualTo => match operands {
+                (Literal::String(left), Literal::String(right)) => Literal::Boolean(left != right),
+                (Literal::Integer(left), Literal::Integer(right)) => {
+                    Literal::Boolean(left != right)
+                }
+                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left != right),
+
+                (Literal::Boolean(left), Literal::Boolean(right)) => {
+                    Literal::Boolean(left != right)
+                }
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::GreaterThan => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => Literal::Boolean(left > right),
+                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left > right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::GreaterThanOrEqualTo => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => {
+                    Literal::Boolean(left >= right)
+                }
+                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left >= right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+
+                    operator: operator,
+
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::LessThan => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => Literal::Boolean(left < right),
+                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left < right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+
+                    operator: operator,
+
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::LessThanOrEqualTo => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => {
+                    Literal::Boolean(left <= right)
+                }
+                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left <= right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::AND => match operands {
+                (Literal::Boolean(left), Literal::Boolean(right)) => {
+                    Literal::Boolean(left && right)
+                }
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::OR => match operands {
+                (Literal::Boolean(left), Literal::Boolean(right)) => {
+                    Literal::Boolean(left || right)
+                }
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::BitwiseAND => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left & right),
+                (Literal::Boolean(left), Literal::Boolean(right)) => Literal::Boolean(left & right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
+
+            BinaryOperator::BitwiseOR => match operands {
+                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left | right),
+                (Literal::Boolean(left), Literal::Boolean(right)) => Literal::Boolean(left | right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: operator,
+                    right: right.slang_type(),
+                })?,
+            },
+        })
     }
 
     fn evaluate_unary(
@@ -178,7 +319,24 @@ impl Expression {
     ) -> Result<Literal, EvaluationError> {
         let operand = operand.evaluate()?;
 
-        todo!()
+        Ok(match operator {
+            UnaryOperator::Minus => match operand {
+                Literal::Integer(operand) => Literal::Integer(-operand),
+                Literal::Float(operand) => Literal::Float(-operand),
+                _ => Err(EvaluationError::InvalidUnaryType {
+                    operator,
+                    operand: operand.slang_type(),
+                })?,
+            },
+            UnaryOperator::NOT => match operand {
+                Literal::Integer(operand) => Literal::Integer(!operand),
+                Literal::Boolean(operand) => Literal::Boolean(!operand),
+                _ => Err(EvaluationError::InvalidUnaryType {
+                    operator,
+                    operand: operand.slang_type(),
+                })?,
+            },
+        })
     }
 }
 
@@ -275,4 +433,15 @@ impl BinaryOperator {
 pub enum UnaryOperator {
     Minus,
     NOT,
+}
+
+impl UnaryOperator {
+    pub fn raw(&self) -> String {
+        match self {
+            Self::Minus => "-",
+
+            Self::NOT => "!",
+        }
+        .to_string()
+    }
 }
