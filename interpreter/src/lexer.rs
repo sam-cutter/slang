@@ -16,9 +16,6 @@ pub enum LexerError {
         character: char,
         expected: Option<char>,
     },
-    UnexpectedEndOfFile {
-        expected: char,
-    },
 }
 
 impl Display for LexerError {
@@ -29,14 +26,6 @@ impl Display for LexerError {
             }
             Self::UnterminatedBlockComment(location) => {
                 write!(f, "{} Unterminated block comment.", location)
-            }
-            Self::UnexpectedEndOfFile { expected } => {
-                write!(
-                    f,
-                    "{} Reached end of file, but expected `{}`",
-                    GeneralLocation::EndOfFile,
-                    expected
-                )
             }
             Self::UnexpectedCharacter {
                 location,
