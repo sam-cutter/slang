@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    source::{GeneralLocation, Location, Source},
+    source::{Location, Source},
     token::{Token, TokenData},
 };
 
