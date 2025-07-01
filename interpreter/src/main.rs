@@ -47,7 +47,7 @@ fn run_file(filename: &str) {
 
     match contents {
         Ok(source) => run(&source),
-        Err(_) => return,
+        Err(error) => eprintln!("{}", error),
     }
 }
 
