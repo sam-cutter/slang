@@ -83,6 +83,8 @@ pub enum TokenData {
     Identifier(String),
 
     Print,
+
+    EndOfFile,
 }
 
 impl TokenData {
@@ -137,6 +139,8 @@ impl TokenData {
             TokenData::Identifier(_) => TokenKind::Identifier,
 
             TokenData::Print => TokenKind::Print,
+
+            TokenData::EndOfFile => TokenKind::EndOfFile,
         }
     }
 }
@@ -192,6 +196,8 @@ pub enum TokenKind {
     Identifier,
 
     Print,
+
+    EndOfFile,
 }
 
 impl TokenKind {
