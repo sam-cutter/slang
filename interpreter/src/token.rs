@@ -81,6 +81,8 @@ pub enum TokenData {
     Let,
     Fu,
     Identifier(String),
+
+    Print,
 }
 
 impl TokenData {
@@ -133,6 +135,8 @@ impl TokenData {
             TokenData::Let => TokenKind::Let,
             TokenData::Fu => TokenKind::Fu,
             TokenData::Identifier(_) => TokenKind::Identifier,
+
+            TokenData::Print => TokenKind::Print,
         }
     }
 }
@@ -186,6 +190,8 @@ pub enum TokenKind {
     Let,
     Fu,
     Identifier,
+
+    Print,
 }
 
 impl TokenKind {

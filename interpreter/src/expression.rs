@@ -41,7 +41,7 @@ impl Display for EvaluationError {
             ),
             Self::InvalidUnaryType { operator, operand } => write!(
                 f,
-                "[evaluation error] The unary {} operator is not defined for {}.",
+                "[evaluation error] The unary `{}` operator is not defined for {}.",
                 operator.raw(),
                 operand
             ),

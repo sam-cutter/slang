@@ -5,6 +5,11 @@ The source code and project report for my A-level Computer Science NEA.
 This is the current grammar of slang.
 
 ```
+program -> statement* EOF
+
+statement -> expression ";"
+           | "print" expression ";"
+
 expression -> ternary
 
 ternary -> equality ("?" equality ":" equality)?
@@ -22,8 +27,8 @@ factor -> unary (("*" | "/") unary)*
 unary -> ("!" | "-")? primary
 
 primary -> "(" expression ")"
-    | STRING
-    | NUMBER
-    | "true" | "false"
-    | "null"
+         | STRING
+         | NUMBER
+         | "true" | "false"
+         | "null"
 ```
