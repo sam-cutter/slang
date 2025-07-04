@@ -5,7 +5,7 @@ The source code and project report for my A-level Computer Science NEA.
 This is the current grammar of slang.
 
 ```
-program -> statement* EOF
+program -> statement*
 
 statement -> expression ";"
            | "print" expression ";"

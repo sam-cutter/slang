@@ -7,6 +7,7 @@ mod expression;
 mod lexer;
 mod parser;
 mod source;
+mod statement;
 mod token;
 mod token_stream;
 
@@ -71,12 +72,9 @@ fn run(source: &str) {
     let parser = Parser::new(tokens);
 
     match parser.parse() {
-        Ok(expressions) => {
-            for expression in expressions {
-                match expression.evaluate() {
-                    Ok(literal) => println!("{:?}", literal),
-                    Err(error) => eprintln!("{:?}", error),
-                }
+        Ok(statements) => {
+            for statement in statements {
+                statement.execute();
             }
         }
         Err(errors) => {

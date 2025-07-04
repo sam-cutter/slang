@@ -6,6 +6,7 @@ use std::{
 use crate::{
     expression::{BinaryOperator, Expression, Literal, UnaryOperator},
     source::GeneralLocation,
+    statement::Statement,
     token::{TokenData, TokenKind},
     token_stream::TokenStream,
 };
@@ -60,13 +61,13 @@ impl Parser {
         Self { tokens }
     }
 
-    pub fn parse(mut self) -> Result<Vec<Expression>, Vec<ParserError>> {
-        let mut expressions: Vec<Expression> = Vec::new();
+    pub fn parse(mut self) -> Result<Vec<Statement>, Vec<ParserError>> {
+        let mut statements: Vec<Statement> = Vec::new();
         let mut errors: Vec<ParserError> = Vec::new();
 
         while self.tokens.peek().is_some() {
-            match self.expression() {
-                Ok(expression) => expressions.push(expression),
+            match self.statement() {
+                Ok(statement) => statements.push(statement),
                 Err(error) => {
                     errors.push(error);
                     self.synchronize();
@@ -75,7 +76,7 @@ impl Parser {
         }
 
         if errors.is_empty() {
-            Ok(expressions)
+            Ok(statements)
         } else {
             Err(errors)
         }
@@ -102,6 +103,11 @@ impl Parser {
                 }
             }
         }
+    }
+
+    fn statement(&mut self) -> Result<Statement, ParserError> {
+        // Handle expression statement
+        // Handle print statement
     }
 
     fn expression(&mut self) -> Result<Expression, ParserError> {

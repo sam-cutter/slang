@@ -124,8 +124,6 @@ impl Lexer {
             self.current_token_start = self.source.location();
         }
 
-        self.add_token(TokenData::EndOfFile);
-
         (self.tokens, errors)
     }
 
