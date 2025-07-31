@@ -108,6 +108,7 @@ impl Parser {
     fn statement(&mut self) -> Result<Statement, ParserError> {
         // Handle expression statement
         // Handle print statement
+        // Handle all other types of statement
     }
 
     fn expression(&mut self) -> Result<Expression, ParserError> {
