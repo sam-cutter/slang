@@ -74,12 +74,14 @@ fn run(source: &str) {
     match parser.parse() {
         Ok(statements) => {
             for statement in statements {
-                statement.execute();
+                if let Err(error) = statement.execute() {
+                    eprintln!("{}", error);
+                }
             }
         }
         Err(errors) => {
             for error in errors {
-                eprintln!("{:?}", error);
+                eprintln!("{}", error);
             }
         }
     }

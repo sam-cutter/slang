@@ -106,9 +106,23 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
-        // Handle expression statement
-        // Handle print statement
-        // Handle all other types of statement
+        if self.tokens.matches(&[TokenKind::Print]).is_some() {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<Statement, ParserError> {
+        let statement = Statement::Print(self.expression()?);
+        self.tokens.consume(TokenKind::Semicolon)?;
+        Ok(statement)
+    }
+
+    fn expression_statement(&mut self) -> Result<Statement, ParserError> {
+        let statement = Statement::Expression(self.expression()?);
+        self.tokens.consume(TokenKind::Semicolon)?;
+        Ok(statement)
     }
 
     fn expression(&mut self) -> Result<Expression, ParserError> {

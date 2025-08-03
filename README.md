@@ -29,6 +29,7 @@ unary -> ("!" | "-")? primary
 primary -> "(" expression ")"
          | STRING
          | NUMBER
+         | IDENTIFIER
          | "true" | "false"
          | "null"
 ```

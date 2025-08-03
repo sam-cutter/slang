@@ -14,7 +14,6 @@ pub enum EvaluationError {
     },
     InvalidUnaryType {
         operator: UnaryOperator,
-
         operand: SlangType,
     },
     DivisionByZero,
@@ -347,6 +346,18 @@ pub enum Literal {
     Integer(i32),
     Boolean(bool),
     Null,
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::String(value) => write!(f, "{}", value),
+            Self::Float(value) => write!(f, "{}", value),
+            Self::Integer(value) => write!(f, "{}", value),
+            Self::Boolean(value) => write!(f, "{}", value),
+            Self::Null => write!(f, "null"),
+        }
+    }
 }
 
 impl Literal {
