@@ -7,8 +7,13 @@ This is the current grammar of slang.
 ```
 program -> statement*
 
-statement -> expression ";"
-           | "print" expression ";"
+statement -> variableDeclaration
+           | nonDeclaration
+
+variableDeclaration -> "let" IDENTIFIER "=" expression ";"
+
+nonDeclaration -> expression ";"
+                | "print" expression ";"
 
 expression -> ternary
 

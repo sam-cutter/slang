@@ -106,6 +106,26 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
+        if self.tokens.matches(&[TokenKind::Let]).is_some() {
+            self.variable_declaration()
+        } else {
+            self.non_declaration()
+        }
+    }
+
+    fn variable_declaration(&mut self) -> Result<Statement, ParserError> {
+        let identifier = self.tokens.consume_identifier()?;
+        self.tokens.consume(TokenKind::Equal)?;
+        let initialiser = self.expression()?;
+        self.tokens.consume(TokenKind::Semicolon)?;
+
+        Ok(Statement::VariableDeclaration {
+            identifier,
+            initialiser,
+        })
+    }
+
+    fn non_declaration(&mut self) -> Result<Statement, ParserError> {
         if self.tokens.matches(&[TokenKind::Print]).is_some() {
             self.print_statement()
         } else {
@@ -294,6 +314,7 @@ impl Parser {
             TokenKind::Integer,
             TokenKind::Boolean,
             TokenKind::Null,
+            TokenKind::Identifier,
         ];
 
         if let Some(token) = self.tokens.matches(&expected) {
@@ -315,6 +336,10 @@ impl Parser {
                 TokenData::Boolean(boolean) => Literal::Boolean(boolean),
 
                 TokenData::Null => Literal::Null,
+
+                TokenData::Identifier(identifier) => {
+                    return Ok(Expression::Variable(identifier));
+                }
 
                 _ => unreachable!(),
             }))

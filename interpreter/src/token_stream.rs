@@ -4,7 +4,7 @@ use crate::{
     expression::{BinaryOperator, UnaryOperator},
     parser::ParserError,
     source::{GeneralLocation, Location},
-    token::{Token, TokenKind},
+    token::{Token, TokenData, TokenKind},
 };
 
 pub struct TokenStream {
@@ -76,6 +76,16 @@ impl TokenStream {
         }
 
         None
+    }
+
+    pub fn consume_identifier(&mut self) -> Result<String, ParserError> {
+        match self.consume(TokenKind::Identifier) {
+            Ok(token) => match token.data() {
+                TokenData::Identifier(identifier) => Ok(identifier),
+                _ => unreachable!(),
+            },
+            Err(error) => Err(error),
+        }
     }
 
     pub fn consume(&mut self, kind: TokenKind) -> Result<Token, ParserError> {

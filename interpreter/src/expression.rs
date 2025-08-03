@@ -77,6 +77,7 @@ pub enum Expression {
     },
     Grouping(Box<Expression>),
     Literal(Literal),
+    Variable(String),
 }
 
 impl Expression {
@@ -99,6 +100,8 @@ impl Expression {
             Self::Grouping(expression) => expression.evaluate(),
 
             Self::Literal(literal) => Ok(literal),
+
+            Self::Variable(name) => todo!(),
         }
     }
 
@@ -450,7 +453,6 @@ impl UnaryOperator {
     pub fn raw(&self) -> String {
         match self {
             Self::Minus => "-",
-
             Self::NOT => "!",
         }
         .to_string()
