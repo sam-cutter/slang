@@ -3,6 +3,8 @@ use std::{
     fmt::{Debug, Display},
 };
 
+use crate::environment::Environment;
+
 pub enum EvaluationError {
     NonBooleanTernaryCondition {
         condition: SlangType,
@@ -17,6 +19,9 @@ pub enum EvaluationError {
         operand: SlangType,
     },
     DivisionByZero,
+    UndefinedVariable {
+        name: String,
+    },
 }
 
 impl Display for EvaluationError {
@@ -46,6 +51,13 @@ impl Display for EvaluationError {
             ),
             Self::DivisionByZero => {
                 write!(f, "[evaluation error] Division by zero.")
+            }
+            Self::UndefinedVariable { name } => {
+                write!(
+                    f,
+                    "[evaluation error] The variable `{}` is not defined.",
+                    name
+                )
             }
         }
     }
@@ -81,42 +93,48 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn evaluate(self) -> Result<Literal, EvaluationError> {
+    pub fn evaluate(self, environment: &mut Environment) -> Result<Literal, EvaluationError> {
         match self {
             Self::Ternary {
                 condition,
                 left,
                 right,
-            } => Expression::evaluate_ternary(condition, left, right),
+            } => Expression::evaluate_ternary(environment, condition, left, right),
 
             Self::Binary {
                 left,
                 operator,
                 right,
-            } => Expression::evaluate_binary(left, operator, right),
+            } => Expression::evaluate_binary(environment, left, operator, right),
 
-            Self::Unary { operator, operand } => Expression::evaluate_unary(operator, operand),
+            Self::Unary { operator, operand } => {
+                Expression::evaluate_unary(environment, operator, operand)
+            }
 
-            Self::Grouping(expression) => expression.evaluate(),
+            Self::Grouping(expression) => expression.evaluate(environment),
 
             Self::Literal(literal) => Ok(literal),
 
-            Self::Variable(name) => todo!(),
+            Self::Variable(identifier) => match environment.get(&identifier) {
+                Some(literal) => Ok(literal),
+                None => Err(EvaluationError::UndefinedVariable { name: identifier }),
+            },
         }
     }
 
     fn evaluate_ternary(
+        environment: &mut Environment,
         condition: Box<Expression>,
         left: Box<Expression>,
         right: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        let condition = condition.evaluate()?;
+        let condition = condition.evaluate(environment)?;
 
         if let Literal::Boolean(condition) = condition {
             if condition {
-                return left.evaluate();
+                return left.evaluate(environment);
             } else {
-                return right.evaluate();
+                return right.evaluate(environment);
             }
         } else {
             return Err(EvaluationError::NonBooleanTernaryCondition {
@@ -126,11 +144,12 @@ impl Expression {
     }
 
     fn evaluate_binary(
+        environment: &mut Environment,
         left: Box<Expression>,
         operator: BinaryOperator,
         right: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        let operands = (left.evaluate()?, right.evaluate()?);
+        let operands = (left.evaluate(environment)?, right.evaluate(environment)?);
 
         Ok(match operator {
             BinaryOperator::Add => match operands {
@@ -316,10 +335,11 @@ impl Expression {
     }
 
     fn evaluate_unary(
+        environment: &mut Environment,
         operator: UnaryOperator,
         operand: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        let operand = operand.evaluate()?;
+        let operand = operand.evaluate(environment)?;
 
         Ok(match operator {
             UnaryOperator::Minus => match operand {
@@ -342,7 +362,7 @@ impl Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     String(String),
     Float(f64),

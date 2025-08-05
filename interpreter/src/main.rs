@@ -1,8 +1,10 @@
+use environment::Environment;
 use lexer::Lexer;
 use parser::Parser;
 use source::Source;
 use token_stream::TokenStream;
 
+mod environment;
 mod expression;
 mod lexer;
 mod parser;
@@ -73,8 +75,10 @@ fn run(source: &str) {
 
     match parser.parse() {
         Ok(statements) => {
+            let mut environment = Environment::new();
+
             for statement in statements {
-                if let Err(error) = statement.execute() {
+                if let Err(error) = statement.execute(&mut environment) {
                     eprintln!("{}", error);
                 }
             }
