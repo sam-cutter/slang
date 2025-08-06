@@ -1,3 +1,5 @@
+//! Code relating to the raw source code string.
+
 use std::fmt::Display;
 
 /// Represents the location of a character within a source code string.
