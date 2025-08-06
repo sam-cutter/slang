@@ -8,10 +8,15 @@ use crate::{
     token::{Token, TokenData},
 };
 
+/// All the errors which can occur while lexing.
 pub enum LexerError {
+    /// A string without the enclosing `"`.
     UnterminatedString(Location),
+    /// A block comment without the enclosing `*/`.
     UnterminatedBlockComment(Location),
+    /// An unexpected character, with an optional expected character.
     UnexpectedCharacter {
+        //
         location: Location,
         character: char,
         expected: Option<char>,
@@ -53,6 +58,7 @@ impl Debug for LexerError {
 
 impl Error for LexerError {}
 
+/// An instance of a lexer, for a specific source code string.
 pub struct Lexer {
     source: Source,
     tokens: Vec<Token>,
@@ -60,6 +66,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    /// Creates a new [Lexer] for a specific [Source].
     pub fn new(source: Source) -> Self {
         Self {
             source: source,
@@ -68,6 +75,7 @@ impl Lexer {
         }
     }
 
+    /// Attempts to lexically analyse the source code to produce a sequence of tokens.
     pub fn lex(mut self) -> (Vec<Token>, Vec<LexerError>) {
         let mut errors = Vec::new();
 
@@ -127,6 +135,7 @@ impl Lexer {
         (self.tokens, errors)
     }
 
+    /// Adds a token to the internal list of tokens.
     fn add_token(&mut self, data: TokenData) {
         self.tokens.push(Token::new(
             data,
@@ -135,6 +144,7 @@ impl Lexer {
         ));
     }
 
+    /// Called when a `!` character is encountered.
     fn handle_bang(&mut self) {
         if self.source.matches('=') {
             self.add_token(TokenData::BangEqual);
@@ -143,6 +153,7 @@ impl Lexer {
         }
     }
 
+    /// Called when a `=` character is encountered.
     fn handle_equal(&mut self) {
         if self.source.matches('=') {
             self.add_token(TokenData::DoubleEqual);
@@ -151,6 +162,7 @@ impl Lexer {
         }
     }
 
+    /// Called when a `<` character is encountered.
     fn handle_less(&mut self) {
         if self.source.matches('=') {
             self.add_token(TokenData::LessEqual);
@@ -159,6 +171,7 @@ impl Lexer {
         }
     }
 
+    /// Called when a `>` character is encountered.
     fn handle_greater(&mut self) {
         if self.source.matches('=') {
             self.add_token(TokenData::GreaterEqual);
@@ -167,6 +180,7 @@ impl Lexer {
         }
     }
 
+    /// Called when a `&` character is encountered.
     fn handle_ampersand(&mut self) {
         if self.source.matches('&') {
             self.add_token(TokenData::DoubleAmpersand);
@@ -175,6 +189,7 @@ impl Lexer {
         }
     }
 
+    /// Called when a `|` character is encountered.
     fn handle_pipe(&mut self) {
         if self.source.matches('|') {
             self.add_token(TokenData::DoublePipe);
@@ -183,6 +198,7 @@ impl Lexer {
         }
     }
 
+    /// Called when a `/` character is encountered.
     fn handle_slash(&mut self) -> Result<(), LexerError> {
         // Block comments
         if self.source.matches('*') {
@@ -222,6 +238,7 @@ impl Lexer {
         Ok(())
     }
 
+    /// Called when a `"` character is encountered.
     fn handle_string(&mut self) -> Result<(), LexerError> {
         let mut string = String::new();
 
@@ -246,6 +263,7 @@ impl Lexer {
         Ok(())
     }
 
+    /// Called when a digit is encountered.
     fn handle_number(&mut self, first_digit: char) {
         let mut number = String::new();
 
@@ -288,6 +306,7 @@ impl Lexer {
         }
     }
 
+    /// Called when an alphabetic character is encountered.
     fn handle_word(&mut self, first_character: char) {
         let mut word = String::new();
 
