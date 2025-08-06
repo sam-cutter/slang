@@ -19,8 +19,8 @@ pub enum EvaluationError {
         operand: SlangType,
     },
     DivisionByZero,
-    UndefinedVariable {
-        name: String,
+    UndefinedIdentifier {
+        identifier: String,
     },
 }
 
@@ -52,11 +52,11 @@ impl Display for EvaluationError {
             Self::DivisionByZero => {
                 write!(f, "[evaluation error] Division by zero.")
             }
-            Self::UndefinedVariable { name } => {
+            Self::UndefinedIdentifier { identifier } => {
                 write!(
                     f,
-                    "[evaluation error] The variable `{}` is not defined.",
-                    name
+                    "[evaluation error] The identifier `{}` is not defined.",
+                    identifier
                 )
             }
         }
@@ -117,7 +117,7 @@ impl Expression {
 
             Self::Variable(identifier) => match environment.get(&identifier) {
                 Some(literal) => Ok(literal),
-                None => Err(EvaluationError::UndefinedVariable { name: identifier }),
+                None => Err(EvaluationError::UndefinedIdentifier { identifier }),
             },
         }
     }

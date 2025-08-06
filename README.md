@@ -17,7 +17,9 @@ nonDeclaration -> expression ";"
 
 expression -> ternary
 
-ternary -> equality ("?" equality ":" equality)?
+ternary -> logical ("?" logical ":" logical)?
+
+logical -> equality (("&&" | "||") equality)*
 
 equality -> comparison (("!=" | "==") comparison)*
 
