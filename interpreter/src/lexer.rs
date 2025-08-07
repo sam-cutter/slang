@@ -141,11 +141,7 @@ impl Lexer {
 
     /// Adds a token to the internal list of tokens.
     fn add_token(&mut self, data: TokenData) {
-        self.tokens.push(Token::new(
-            data,
-            self.current_token_start,
-            self.source.location().index - self.current_token_start.index,
-        ));
+        self.tokens.push(Token::new(data, self.current_token_start));
     }
 
     /// Called when a `!` character is encountered.

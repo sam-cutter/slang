@@ -12,18 +12,12 @@ pub struct Token {
     data: TokenData,
     /// The location of its first character.
     location: Location,
-    /// The number of characters which make up this token.
-    length: usize,
 }
 
 impl Token {
     /// Creates a new [Token].
-    pub fn new(data: TokenData, location: Location, length: usize) -> Self {
-        Self {
-            data,
-            location,
-            length,
-        }
+    pub fn new(data: TokenData, location: Location) -> Self {
+        Self { data, location }
     }
 
     /// Returns the kind of the token.
