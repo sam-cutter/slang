@@ -1,3 +1,5 @@
+//! The lexer for the slang programming language.
+
 use std::{
     error::Error,
     fmt::{Debug, Display},
@@ -76,6 +78,8 @@ impl Lexer {
     }
 
     /// Attempts to lexically analyse the source code to produce a sequence of tokens.
+    ///
+    /// Will consume the entire source code, returning all valid tokens, and any errors.
     pub fn lex(mut self) -> (Vec<Token>, Vec<LexerError>) {
         let mut errors = Vec::new();
 

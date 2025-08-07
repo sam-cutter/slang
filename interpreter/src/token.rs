@@ -1,16 +1,23 @@
+//! Tokens within the slang programming language.
+
 use crate::{
     expression::{BinaryOperator, UnaryOperator},
     source::Location,
 };
 
+/// The smallest meaningful unit of the language.
 #[derive(Debug)]
 pub struct Token {
+    /// The contained data, including the token type, and any associated data.
     data: TokenData,
+    /// The location of its first character.
     location: Location,
+    /// The number of characters which make up this token.
     length: usize,
 }
 
 impl Token {
+    /// Creates a new [Token].
     pub fn new(data: TokenData, location: Location, length: usize) -> Self {
         Self {
             data,
@@ -19,73 +26,120 @@ impl Token {
         }
     }
 
+    /// Returns the kind of the token.
     pub fn kind(&self) -> TokenKind {
         self.data.kind()
     }
 
+    /// Returns the location of the token's first character.
     pub fn location(&self) -> Location {
         self.location
     }
 
+    /// Consumes the token and returns its data.
     pub fn data(self) -> TokenData {
         self.data
     }
 }
 
+/// The data contained within a token.
+///
+/// This is simnilar to [TokenKind], however contains more information. For example, the [TokenData::Integer] variant has an [i32] field which stores the integer that token represents, however [TokenKind::Integer] has no contained fields, and is simply a flag stating that the token represents an integer.
 #[derive(Debug)]
 pub enum TokenData {
+    /// The `(` character.
     LeftParenthesis,
+    /// The `)` character.
     RightParenthesis,
+    /// The `{` character.
     LeftBrace,
+    /// The `}` character.
     RightBrace,
+    /// The `,` character.
     Comma,
+    /// The `.` character.
     Dot,
+    /// The `;` character.
     Semicolon,
+    /// The `?` character.
     QuestionMark,
+    /// The `:` character.
     Colon,
 
     // Arithmetic operators
+    /// The `+` character.
     Plus,
+    /// The `-` character.
     Minus,
+    /// The `*` character.
     Star,
+    /// The `/` character.
     Slash,
 
     // Logical and bitwise operators
+    /// The `!` character.
     Bang,
+    /// The `!=` string.
     BangEqual,
+    /// The `=` character.
     Equal,
+    /// The `==` string.
     DoubleEqual,
+    /// The `>` character.
     Greater,
+    /// The `>=` string.
     GreaterEqual,
+    /// The `<` character.
     Less,
+    /// The `<=` string.
     LessEqual,
+    /// The `&` character.
     Ampersand,
+    /// The `&&` string.
     DoubleAmpersand,
+    /// The `|` character.
     Pipe,
+    /// The `||` string.
     DoublePipe,
 
     // Literals
+    /// String literals enclosed in `"`.
     String(String),
+    /// Floating point numbers, denoted with a `.` separating the integer and fractional parts.
     Float(f64),
+    /// Integers.
     Integer(i32),
+    /// Either `true` or `false`.
     Boolean(bool),
+    /// The `null` string.
     Null,
 
     // Control flow
+    /// The `if` string.
     If,
+    /// The `else` string.
     Else,
+    /// The `while` string.
     While,
+    /// The `return` string.
     Return,
 
     // Identifier related
+    /// The `let` string.
     Let,
+    /// The `fu` string.
     Fu,
+    /// All valid identifiers.
+    ///
+    /// Must start with either an alphabetic character or an underscore, with all subsequent characters being alphanumeric or underscores.
     Identifier(String),
 
+    /// The `print` string.
     Print,
 }
 
 impl TokenData {
+    /// Returns the [TokenKind] of some [TokenData].
     pub fn kind(&self) -> TokenKind {
         match self {
             TokenData::LeftParenthesis => TokenKind::LeftParenthesis,
@@ -141,60 +195,102 @@ impl TokenData {
     }
 }
 
+/// A flag signalling the type of a token, without any additional data.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenKind {
+    /// The `(` character.
     LeftParenthesis,
+    /// The `)` character.
     RightParenthesis,
+    /// The `{` character.
     LeftBrace,
+    /// The `}` character.
     RightBrace,
+    /// The `,` character.
     Comma,
+    /// The `.` character.
     Dot,
+    /// The `;` character.
     Semicolon,
+    /// The `?` character.
     QuestionMark,
+    /// The `:` character.
     Colon,
 
     // Arithmetic operators
+    /// The `+` character.
     Plus,
+    /// The `-` character.
     Minus,
+    /// The `*` character.
     Star,
+    /// The `/` character.
     Slash,
 
     // Logical and bitwise operators
+    /// The `!` character.
     Bang,
+    /// The `!=` string.
     BangEqual,
+    /// The `=` character.
     Equal,
+    /// The `==` string.
     DoubleEqual,
+    /// The `>` character.
     Greater,
+    /// The `>=` string.
     GreaterEqual,
+    /// The `<` character.
     Less,
+    /// The `<=` string.
     LessEqual,
+    /// The `&` character.
     Ampersand,
+    /// The `&&` string.
     DoubleAmpersand,
+    /// The `|` character.
     Pipe,
+    /// The `||` string.
     DoublePipe,
 
     // Literals
+    /// String literals enclosed in `"`.
     String,
+    /// Floating point numbers, denoted with a `.` separating the integer and fractional parts.
     Float,
+    /// Integers.
     Integer,
+    /// Either `true` or `false`.
     Boolean,
+    /// The `null` string.
     Null,
 
     // Control flow
+    /// The `if` string.
     If,
+    /// The `else` string.
     Else,
+    /// The `while` string.
     While,
+    /// The `return` string.
     Return,
 
     // Identifier related
+    /// The `let` string.
     Let,
+    /// The `fu` string.
     Fu,
+    /// All valid identifiers.
+    ///
+    /// Must start with either an alphabetic character or an underscore, with all subsequent characters being alphanumeric or underscores.
     Identifier,
 
+    /// The `print` string.
     Print,
 }
 
 impl TokenKind {
+    /// Attempts to cast itself to a [BinaryOperator], returning [None] if it does not represent a binary operator.
     pub fn binary_operator(&self) -> Option<BinaryOperator> {
         Some(match self {
             Self::Plus => BinaryOperator::Add,
@@ -218,6 +314,7 @@ impl TokenKind {
         })
     }
 
+    /// Attempts to cast itself to a [UnaryOperator], returning [None] if it does not represent a unary operator.
     pub fn unary_operator(&self) -> Option<UnaryOperator> {
         Some(match self {
             Self::Minus => UnaryOperator::Minus,
