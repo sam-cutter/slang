@@ -68,6 +68,10 @@ impl Stack {
         None
     }
 
+    pub fn push(&mut self) {
+        self.stack.push(Environment::new());
+    }
+
     pub fn pop(&mut self) {
         self.stack.pop();
     }

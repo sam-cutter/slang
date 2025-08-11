@@ -83,6 +83,8 @@ fn run(source: &str, stack: &mut Stack) {
             for statement in statements {
                 if let Err(error) = statement.execute(stack) {
                     eprintln!("{}", error);
+                    // TODO: return with an exit code
+                    return;
                 }
             }
         }

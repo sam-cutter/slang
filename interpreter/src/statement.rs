@@ -31,6 +31,8 @@ impl Statement {
                 Err(error) => Err(error),
             },
             Self::Block { statements } => {
+                stack.push();
+
                 for statement in statements {
                     statement.execute(stack)?;
                 }
