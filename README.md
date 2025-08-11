@@ -14,8 +14,12 @@ variableDeclaration -> "let" IDENTIFIER "=" expression ";"
 
 nonDeclaration -> expression ";"
                 | "print" expression ";"
+                | "{" statement* "}"
 
-expression -> ternary
+expression -> assignment
+
+assignment -> IDENTIFIER "=" assignment
+            | ternary
 
 ternary -> logical ("?" logical ":" logical)?
 
@@ -35,7 +39,8 @@ unary -> ("!" | "-")? primary
 
 primary -> "(" expression ")"
          | STRING
-         | NUMBER
+         | INTEGER
+         | FLOAT
          | IDENTIFIER
          | "true" | "false"
          | "null"

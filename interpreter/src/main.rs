@@ -3,10 +3,10 @@ use std::{
     io::{self, BufRead, Write},
 };
 
-use environment::Environment;
 use lexer::Lexer;
 use parser::Parser;
 use source::Source;
+use stack::Stack;
 use token_stream::TokenStream;
 
 mod environment;
@@ -14,6 +14,7 @@ mod expression;
 mod lexer;
 mod parser;
 mod source;
+mod stack;
 mod statement;
 mod token;
 mod token_stream;
@@ -34,7 +35,7 @@ fn run_prompt() {
     let mut stdin = io::stdin().lock();
     let mut stdout = io::stdout().lock();
 
-    let mut enviornment = Environment::new();
+    let mut stack = Stack::new();
 
     loop {
         line.clear();
@@ -43,22 +44,22 @@ fn run_prompt() {
         let _ = stdout.flush();
         let _ = stdin.read_line(&mut line);
 
-        run(line.trim(), &mut enviornment);
+        run(line.trim(), &mut stack);
     }
 }
 
 fn run_file(filename: &str) {
     let contents = fs::read_to_string(filename);
 
-    let mut enviornment = Environment::new();
+    let mut stack = Stack::new();
 
     match contents {
-        Ok(source) => run(&source, &mut enviornment),
+        Ok(source) => run(&source, &mut stack),
         Err(error) => eprintln!("{}", error),
     }
 }
 
-fn run(source: &str, environment: &mut Environment) {
+fn run(source: &str, stack: &mut Stack) {
     let source = Source::new(source);
 
     let lexer = Lexer::new(source);
@@ -80,7 +81,7 @@ fn run(source: &str, environment: &mut Environment) {
     match parser.parse() {
         Ok(statements) => {
             for statement in statements {
-                if let Err(error) = statement.execute(environment) {
+                if let Err(error) = statement.execute(stack) {
                     eprintln!("{}", error);
                 }
             }

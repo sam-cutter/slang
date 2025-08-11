@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     expression::{BinaryOperator, Expression, Literal, UnaryOperator},
-    source::GeneralLocation,
+    source::{GeneralLocation, Location},
     statement::Statement,
     token::{TokenData, TokenKind},
     token_stream::TokenStream,
@@ -19,6 +19,9 @@ pub enum ParserError {
     UnsupportedUnaryExpression {
         operator: BinaryOperator,
         location: GeneralLocation,
+    },
+    InvalidAssignmentTarget {
+        location: Location,
     },
 }
 
@@ -39,6 +42,9 @@ impl Display for ParserError {
                     location,
                     operator.raw(),
                 )
+            }
+            Self::InvalidAssignmentTarget { location } => {
+                write!(f, "{} Invalid assignment target.", location)
             }
         }
     }
@@ -128,15 +134,11 @@ impl Parser {
     fn non_declaration(&mut self) -> Result<Statement, ParserError> {
         if self.tokens.matches(&[TokenKind::Print]).is_some() {
             self.print_statement()
+        } else if self.tokens.matches(&[TokenKind::LeftBrace]).is_some() {
+            self.block()
         } else {
             self.expression_statement()
         }
-    }
-
-    fn print_statement(&mut self) -> Result<Statement, ParserError> {
-        let statement = Statement::Print(self.expression()?);
-        self.tokens.consume(TokenKind::Semicolon)?;
-        Ok(statement)
     }
 
     fn expression_statement(&mut self) -> Result<Statement, ParserError> {
@@ -145,8 +147,51 @@ impl Parser {
         Ok(statement)
     }
 
+    fn print_statement(&mut self) -> Result<Statement, ParserError> {
+        let statement = Statement::Print(self.expression()?);
+        self.tokens.consume(TokenKind::Semicolon)?;
+        Ok(statement)
+    }
+
+    fn block(&mut self) -> Result<Statement, ParserError> {
+        let mut statements = Vec::new();
+
+        while self
+            .tokens
+            .peek()
+            .is_some_and(|token| token.kind() != TokenKind::RightBrace)
+        {
+            statements.push(self.statement()?);
+        }
+
+        self.tokens.consume(TokenKind::RightBrace)?;
+
+        Ok(Statement::Block { statements })
+    }
+
     fn expression(&mut self) -> Result<Expression, ParserError> {
-        self.ternary()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expression, ParserError> {
+        let expression = self.ternary()?;
+
+        if let Some(equals) = self.tokens.matches(&[TokenKind::Equal]) {
+            let value = self.assignment()?;
+
+            if let Expression::Variable(identifier) = expression {
+                Ok(Expression::Assignment {
+                    identifier: identifier,
+                    value: Box::new(value),
+                })
+            } else {
+                Err(ParserError::InvalidAssignmentTarget {
+                    location: equals.location(),
+                })
+            }
+        } else {
+            Ok(expression)
+        }
     }
 
     fn ternary(&mut self) -> Result<Expression, ParserError> {

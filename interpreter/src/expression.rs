@@ -3,7 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use crate::environment::Environment;
+use crate::stack::{Stack, StackError};
 
 pub enum EvaluationError {
     NonBooleanTernaryCondition {
@@ -22,6 +22,16 @@ pub enum EvaluationError {
     UndefinedIdentifier {
         identifier: String,
     },
+}
+
+impl From<StackError> for EvaluationError {
+    fn from(value: StackError) -> Self {
+        match value {
+            StackError::UndefinedAssignmentTarget { identifier } => {
+                Self::UndefinedIdentifier { identifier }
+            }
+        }
+    }
 }
 
 impl Display for EvaluationError {
@@ -87,35 +97,47 @@ pub enum Expression {
         operator: UnaryOperator,
         operand: Box<Expression>,
     },
+    Assignment {
+        identifier: String,
+        value: Box<Expression>,
+    },
     Grouping(Box<Expression>),
     Literal(Literal),
     Variable(String),
 }
 
 impl Expression {
-    pub fn evaluate(self, environment: &mut Environment) -> Result<Literal, EvaluationError> {
+    pub fn evaluate(self, stack: &mut Stack) -> Result<Literal, EvaluationError> {
         match self {
             Self::Ternary {
                 condition,
                 left,
                 right,
-            } => Expression::evaluate_ternary(environment, condition, left, right),
+            } => Expression::evaluate_ternary(stack, condition, left, right),
 
             Self::Binary {
                 left,
                 operator,
                 right,
-            } => Expression::evaluate_binary(environment, left, operator, right),
+            } => Expression::evaluate_binary(stack, left, operator, right),
 
             Self::Unary { operator, operand } => {
-                Expression::evaluate_unary(environment, operator, operand)
+                Expression::evaluate_unary(stack, operator, operand)
             }
 
-            Self::Grouping(expression) => expression.evaluate(environment),
+            Self::Assignment { identifier, value } => {
+                let value = value.evaluate(stack)?;
+
+                stack.assign(identifier, value.clone())?;
+
+                Ok(value)
+            }
+
+            Self::Grouping(expression) => expression.evaluate(stack),
 
             Self::Literal(literal) => Ok(literal),
 
-            Self::Variable(identifier) => match environment.get(&identifier) {
+            Self::Variable(identifier) => match stack.get(&identifier) {
                 Some(literal) => Ok(literal),
                 None => Err(EvaluationError::UndefinedIdentifier { identifier }),
             },
@@ -123,18 +145,18 @@ impl Expression {
     }
 
     fn evaluate_ternary(
-        environment: &mut Environment,
+        stack: &mut Stack,
         condition: Box<Expression>,
         left: Box<Expression>,
         right: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        let condition = condition.evaluate(environment)?;
+        let condition = condition.evaluate(stack)?;
 
         if let Literal::Boolean(condition) = condition {
             if condition {
-                return left.evaluate(environment);
+                return left.evaluate(stack);
             } else {
-                return right.evaluate(environment);
+                return right.evaluate(stack);
             }
         } else {
             return Err(EvaluationError::NonBooleanTernaryCondition {
@@ -144,12 +166,12 @@ impl Expression {
     }
 
     fn evaluate_binary(
-        environment: &mut Environment,
+        stack: &mut Stack,
         left: Box<Expression>,
         operator: BinaryOperator,
         right: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        let operands = (left.evaluate(environment)?, right.evaluate(environment)?);
+        let operands = (left.evaluate(stack)?, right.evaluate(stack)?);
 
         Ok(match operator {
             BinaryOperator::Add => match operands {
@@ -335,11 +357,11 @@ impl Expression {
     }
 
     fn evaluate_unary(
-        environment: &mut Environment,
+        stack: &mut Stack,
         operator: UnaryOperator,
         operand: Box<Expression>,
     ) -> Result<Literal, EvaluationError> {
-        let operand = operand.evaluate(environment)?;
+        let operand = operand.evaluate(stack)?;
 
         Ok(match operator {
             UnaryOperator::Minus => match operand {
