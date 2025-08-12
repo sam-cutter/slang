@@ -1,6 +1,6 @@
 use crate::{
+    environment::Environment,
     expression::{EvaluationError, Expression},
-    stack::Stack,
 };
 
 pub enum Statement {
@@ -16,28 +16,28 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn execute(self, stack: &mut Stack) -> Result<(), EvaluationError> {
+    pub fn execute(self, environment: &mut Environment) -> Result<(), EvaluationError> {
         match self {
-            Self::Print(expression) => Ok(println!("{}", expression.evaluate(stack)?)),
+            Self::Print(expression) => Ok(println!("{}", expression.evaluate(environment)?)),
             Self::VariableDeclaration {
                 identifier,
                 initialiser,
             } => {
-                let initialiser = initialiser.evaluate(stack)?;
-                Ok(stack.define(identifier, initialiser))
+                let initialiser = initialiser.evaluate(environment)?;
+                Ok(environment.define(identifier, initialiser))
             }
-            Self::Expression(expression) => match expression.evaluate(stack) {
+            Self::Expression(expression) => match expression.evaluate(environment) {
                 Ok(_) => Ok(()),
                 Err(error) => Err(error),
             },
             Self::Block { statements } => {
-                stack.push();
+                environment.enter_scope();
 
                 for statement in statements {
-                    statement.execute(stack)?;
+                    statement.execute(environment)?;
                 }
 
-                stack.pop();
+                environment.exit_scope();
 
                 Ok(())
             }

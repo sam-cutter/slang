@@ -7,30 +7,58 @@ pub enum EnvironmentError {
 }
 
 pub struct Environment {
-    variables: HashMap<String, Literal>,
+    scopes: Vec<HashMap<String, Literal>>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Self {
-            variables: HashMap::new(),
+            scopes: vec![HashMap::new()],
         }
     }
 
     pub fn define(&mut self, identifier: String, value: Literal) {
-        self.variables.insert(identifier, value);
-    }
-
-    pub fn assign(&mut self, identifier: String, value: Literal) -> Result<(), EnvironmentError> {
-        if self.variables.contains_key(&identifier) {
-            self.variables.insert(identifier, value);
-            Ok(())
+        if let Some(scope) = self.scopes.last_mut() {
+            scope.insert(identifier, value);
         } else {
-            Err(EnvironmentError::UndefinedAssignmentTarget { identifier })
+            let mut scope = HashMap::new();
+
+            scope.insert(identifier, value);
+
+            self.scopes.push(scope);
         }
     }
 
+    pub fn assign(&mut self, identifier: String, value: Literal) -> Result<(), EnvironmentError> {
+        if self.scopes.is_empty() {
+            return Err(EnvironmentError::UndefinedAssignmentTarget { identifier });
+        }
+
+        for scope in self.scopes.iter_mut().rev() {
+            if scope.contains_key(&identifier) {
+                scope.insert(identifier, value);
+                return Ok(());
+            }
+        }
+
+        Err(EnvironmentError::UndefinedAssignmentTarget { identifier })
+    }
+
     pub fn get(&self, identifier: &str) -> Option<Literal> {
-        self.variables.get(identifier).cloned()
+        for scope in self.scopes.iter().rev() {
+            if let Some(value) = scope.get(identifier).cloned() {
+                return Some(value);
+            }
+        }
+
+        None
+    }
+
+    pub fn enter_scope(&mut self) {
+        self.scopes.push(HashMap::new());
+    }
+
+    pub fn exit_scope(&mut self) {
+        self.scopes.pop();
     }
 }
