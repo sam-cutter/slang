@@ -1,18 +1,23 @@
 use crate::{
     environment::Environment,
-    expression::{EvaluationError, Expression},
+    expression::{EvaluationError, Expression, Literal},
 };
 
 pub enum Statement {
     Print(Expression),
-    Expression(Expression),
     VariableDeclaration {
         identifier: String,
         initialiser: Option<Expression>,
     },
+    IfStatement {
+        condition: Expression,
+        execute_if_true: Box<Statement>,
+        execute_if_false: Option<Box<Statement>>,
+    },
     Block {
         statements: Vec<Statement>,
     },
+    Expression(Expression),
 }
 
 impl Statement {
@@ -30,10 +35,24 @@ impl Statement {
 
                 Ok(environment.define(identifier, initialiser))
             }
-            Self::Expression(expression) => match expression.evaluate(environment) {
-                Ok(_) => Ok(()),
-                Err(error) => Err(error),
-            },
+            Self::IfStatement {
+                condition,
+                execute_if_true,
+                execute_if_false,
+            } => {
+                if let Literal::Boolean(condition) = condition.evaluate(environment)? {
+                    if condition {
+                        execute_if_true.execute(environment)
+                    } else {
+                        match execute_if_false {
+                            Some(if_false) => if_false.execute(environment),
+                            None => Ok(()),
+                        }
+                    }
+                } else {
+                    // TODO: Add correct evaluation error
+                }
+            }
             Self::Block { statements } => {
                 environment.enter_scope();
 
@@ -45,6 +64,10 @@ impl Statement {
 
                 Ok(())
             }
+            Self::Expression(expression) => match expression.evaluate(environment) {
+                Ok(_) => Ok(()),
+                Err(error) => Err(error),
+            },
         }
     }
 }

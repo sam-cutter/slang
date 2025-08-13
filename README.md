@@ -7,14 +7,21 @@ This is the current grammar of slang.
 ```
 program -> statement*
 
-statement -> variableDeclaration
-           | nonDeclaration
+statement -> printStatement
+           | variableDeclaration
+           | ifStatement
+           | block
+           | expressionStatement
+
+expressionStatement -> expression ";"
+
+printStatement -> "print" expression ";"
 
 variableDeclaration -> "let" IDENTIFIER ("=" expression)? ";"
 
-nonDeclaration -> expression ";"
-                | "print" expression ";"
-                | "{" statement* "}"
+ifStatement -> "if" expression block ("else" (block | ifStatement))?
+
+block -> "{" statement* "}"
 
 expression -> assignment
 

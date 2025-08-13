@@ -112,11 +112,23 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
-        if self.tokens.matches(&[TokenKind::Let]).is_some() {
+        if self.tokens.matches(&[TokenKind::Print]).is_some() {
+            self.print_statement()
+        } else if self.tokens.matches(&[TokenKind::Let]).is_some() {
             self.variable_declaration()
+        } else if self.tokens.matches(&[TokenKind::If]).is_some() {
+            self.if_statement()
+        } else if self.tokens.matches(&[TokenKind::LeftBrace]).is_some() {
+            self.block()
         } else {
-            self.non_declaration()
+            self.expression_statement()
         }
+    }
+
+    fn print_statement(&mut self) -> Result<Statement, ParserError> {
+        let statement = Statement::Print(self.expression()?);
+        self.tokens.consume(TokenKind::Semicolon)?;
+        Ok(statement)
     }
 
     fn variable_declaration(&mut self) -> Result<Statement, ParserError> {
@@ -136,27 +148,7 @@ impl Parser {
         })
     }
 
-    fn non_declaration(&mut self) -> Result<Statement, ParserError> {
-        if self.tokens.matches(&[TokenKind::Print]).is_some() {
-            self.print_statement()
-        } else if self.tokens.matches(&[TokenKind::LeftBrace]).is_some() {
-            self.block()
-        } else {
-            self.expression_statement()
-        }
-    }
-
-    fn expression_statement(&mut self) -> Result<Statement, ParserError> {
-        let statement = Statement::Expression(self.expression()?);
-        self.tokens.consume(TokenKind::Semicolon)?;
-        Ok(statement)
-    }
-
-    fn print_statement(&mut self) -> Result<Statement, ParserError> {
-        let statement = Statement::Print(self.expression()?);
-        self.tokens.consume(TokenKind::Semicolon)?;
-        Ok(statement)
-    }
+    fn if_statement(&mut self) -> Result<Statement, ParserError> {}
 
     fn block(&mut self) -> Result<Statement, ParserError> {
         let mut statements = Vec::new();
@@ -172,6 +164,12 @@ impl Parser {
         self.tokens.consume(TokenKind::RightBrace)?;
 
         Ok(Statement::Block { statements })
+    }
+
+    fn expression_statement(&mut self) -> Result<Statement, ParserError> {
+        let statement = Statement::Expression(self.expression()?);
+        self.tokens.consume(TokenKind::Semicolon)?;
+        Ok(statement)
     }
 
     fn expression(&mut self) -> Result<Expression, ParserError> {
