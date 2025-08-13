@@ -403,7 +403,6 @@ pub enum Literal {
     Float(f64),
     Integer(i32),
     Boolean(bool),
-    Null,
 }
 
 impl Display for Literal {
@@ -413,7 +412,6 @@ impl Display for Literal {
             Self::Float(value) => write!(f, "{}", value),
             Self::Integer(value) => write!(f, "{}", value),
             Self::Boolean(value) => write!(f, "{}", value),
-            Self::Null => write!(f, "null"),
         }
     }
 }
@@ -425,7 +423,6 @@ impl Literal {
             Self::Float(_) => SlangType::Float,
             Self::Integer(_) => SlangType::Integer,
             Self::Boolean(_) => SlangType::Boolean,
-            Self::Null => SlangType::Null,
         }
     }
 }
@@ -436,7 +433,6 @@ pub enum SlangType {
     Float,
     Integer,
     Boolean,
-    Null,
 }
 
 impl Display for SlangType {
@@ -446,7 +442,6 @@ impl Display for SlangType {
             Self::Float => write!(f, "Float"),
             Self::Integer => write!(f, "Integer"),
             Self::Boolean => write!(f, "Boolean"),
-            Self::Null => write!(f, "null"),
         }
     }
 }

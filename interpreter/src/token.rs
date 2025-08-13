@@ -105,8 +105,6 @@ pub enum TokenData {
     Integer(i32),
     /// Either `true` or `false`.
     Boolean(bool),
-    /// The `null` string.
-    Null,
 
     // Control flow
     /// The `if` string.
@@ -171,7 +169,6 @@ impl TokenData {
             TokenData::Float(_) => TokenKind::Float,
             TokenData::Integer(_) => TokenKind::Integer,
             TokenData::Boolean(_) => TokenKind::Boolean,
-            TokenData::Null => TokenKind::Null,
 
             // Control flow
             TokenData::If => TokenKind::If,
@@ -256,8 +253,6 @@ pub enum TokenKind {
     Integer,
     /// Either `true` or `false`.
     Boolean,
-    /// The `null` string.
-    Null,
 
     // Control flow
     /// The `if` string.

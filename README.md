@@ -43,5 +43,4 @@ primary -> "(" expression ")"
          | FLOAT
          | IDENTIFIER
          | "true" | "false"
-         | "null"
 ```

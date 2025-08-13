@@ -109,7 +109,7 @@ impl Lexer {
                 '&' => Ok(self.handle_ampersand()),
                 '|' => Ok(self.handle_pipe()),
 
-                // Literals (not including booleans or null)
+                // Literals (not including booleans)
                 '"' => self.handle_string(),
                 character if character.is_ascii_digit() => Ok(self.handle_number(character)),
 
@@ -325,7 +325,6 @@ impl Lexer {
             // Literals
             "true" => self.add_token(TokenData::Boolean(true)),
             "false" => self.add_token(TokenData::Boolean(false)),
-            "null" => self.add_token(TokenData::Null),
 
             // Control flow
             "if" => self.add_token(TokenData::If),

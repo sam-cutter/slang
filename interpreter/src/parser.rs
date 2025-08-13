@@ -363,7 +363,6 @@ impl Parser {
             TokenKind::Float,
             TokenKind::Integer,
             TokenKind::Boolean,
-            TokenKind::Null,
             TokenKind::Identifier,
         ];
 
@@ -384,8 +383,6 @@ impl Parser {
                 TokenData::Integer(integer) => Literal::Integer(integer),
 
                 TokenData::Boolean(boolean) => Literal::Boolean(boolean),
-
-                TokenData::Null => Literal::Null,
 
                 TokenData::Identifier(identifier) => {
                     return Ok(Expression::Variable(identifier));
