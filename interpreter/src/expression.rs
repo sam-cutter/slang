@@ -22,6 +22,9 @@ pub enum EvaluationError {
     UndefinedIdentifier {
         identifier: String,
     },
+    UninitialisedVariable {
+        identifier: String,
+    },
 }
 
 impl From<EnvironmentError> for EvaluationError {
@@ -29,6 +32,12 @@ impl From<EnvironmentError> for EvaluationError {
         match value {
             EnvironmentError::UndefinedAssignmentTarget { identifier } => {
                 Self::UndefinedIdentifier { identifier }
+            }
+            EnvironmentError::UndefinedVariable { identifier } => {
+                Self::UndefinedIdentifier { identifier }
+            }
+            EnvironmentError::UninitialisedVariable { identifier } => {
+                Self::UninitialisedVariable { identifier }
             }
         }
     }
@@ -66,6 +75,13 @@ impl Display for EvaluationError {
                 write!(
                     f,
                     "[evaluation error] The identifier `{}` is not defined.",
+                    identifier
+                )
+            }
+            Self::UninitialisedVariable { identifier } => {
+                write!(
+                    f,
+                    "[evaluation error] The variable `{}` has not been initialised.",
                     identifier
                 )
             }
@@ -137,10 +153,7 @@ impl Expression {
 
             Self::Literal(literal) => Ok(literal),
 
-            Self::Variable(identifier) => match environment.get(&identifier) {
-                Some(literal) => Ok(literal),
-                None => Err(EvaluationError::UndefinedIdentifier { identifier }),
-            },
+            Self::Variable(identifier) => Ok(environment.get(&identifier)?),
         }
     }
 

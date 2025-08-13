@@ -4,10 +4,12 @@ use crate::expression::Literal;
 
 pub enum EnvironmentError {
     UndefinedAssignmentTarget { identifier: String },
+    UninitialisedVariable { identifier: String },
+    UndefinedVariable { identifier: String },
 }
 
 pub struct Environment {
-    scopes: Vec<HashMap<String, Literal>>,
+    scopes: Vec<HashMap<String, Option<Literal>>>,
 }
 
 impl Environment {
@@ -17,7 +19,7 @@ impl Environment {
         }
     }
 
-    pub fn define(&mut self, identifier: String, value: Literal) {
+    pub fn define(&mut self, identifier: String, value: Option<Literal>) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(identifier, value);
         } else {
@@ -36,7 +38,7 @@ impl Environment {
 
         for scope in self.scopes.iter_mut().rev() {
             if scope.contains_key(&identifier) {
-                scope.insert(identifier, value);
+                scope.insert(identifier, Some(value));
                 return Ok(());
             }
         }
@@ -44,14 +46,22 @@ impl Environment {
         Err(EnvironmentError::UndefinedAssignmentTarget { identifier })
     }
 
-    pub fn get(&self, identifier: &str) -> Option<Literal> {
+    pub fn get(&self, identifier: &str) -> Result<Literal, EnvironmentError> {
         for scope in self.scopes.iter().rev() {
-            if let Some(value) = scope.get(identifier).cloned() {
-                return Some(value);
+            match scope.get(identifier) {
+                Some(Some(value)) => return Ok(value.clone()),
+                Some(None) => {
+                    return Err(EnvironmentError::UninitialisedVariable {
+                        identifier: identifier.to_string(),
+                    });
+                }
+                None => continue,
             }
         }
 
-        None
+        Err(EnvironmentError::UndefinedVariable {
+            identifier: identifier.to_string(),
+        })
     }
 
     pub fn enter_scope(&mut self) {

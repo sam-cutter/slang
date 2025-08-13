@@ -10,7 +10,7 @@ program -> statement*
 statement -> variableDeclaration
            | nonDeclaration
 
-variableDeclaration -> "let" IDENTIFIER "=" expression ";"
+variableDeclaration -> "let" IDENTIFIER ("=" expression)? ";"
 
 nonDeclaration -> expression ";"
                 | "print" expression ";"

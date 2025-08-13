@@ -8,7 +8,7 @@ pub enum Statement {
     Expression(Expression),
     VariableDeclaration {
         identifier: String,
-        initialiser: Expression,
+        initialiser: Option<Expression>,
     },
     Block {
         statements: Vec<Statement>,
@@ -23,7 +23,11 @@ impl Statement {
                 identifier,
                 initialiser,
             } => {
-                let initialiser = initialiser.evaluate(environment)?;
+                let initialiser = match initialiser {
+                    Some(initialiser) => Some(initialiser.evaluate(environment)?),
+                    None => None,
+                };
+
                 Ok(environment.define(identifier, initialiser))
             }
             Self::Expression(expression) => match expression.evaluate(environment) {

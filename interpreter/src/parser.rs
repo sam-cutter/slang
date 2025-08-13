@@ -121,8 +121,13 @@ impl Parser {
 
     fn variable_declaration(&mut self) -> Result<Statement, ParserError> {
         let identifier = self.tokens.consume_identifier()?;
-        self.tokens.consume(TokenKind::Equal)?;
-        let initialiser = self.expression()?;
+
+        let initialiser = if self.tokens.matches(&[TokenKind::Equal]).is_some() {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
         self.tokens.consume(TokenKind::Semicolon)?;
 
         Ok(Statement::VariableDeclaration {
