@@ -1,3 +1,5 @@
+//! Expressions within the slang programming langauge.
+
 use std::{
     error::Error,
     fmt::{Debug, Display},
@@ -9,26 +11,28 @@ use crate::{
     value::{Type, Value},
 };
 
+/// All errors which can occur while evaluating an expression.
 pub enum EvaluationError {
-    NonBooleanTernaryCondition {
-        condition: Type,
-    },
+    /// When the value of the condition for a ternary expression does not have the type of Boolean.
+    NonBooleanTernaryCondition { condition: Type },
+    /// When the types of the operands for a binary operation are not valid.
     InvalidBinaryTypes {
         left: Type,
         operator: BinaryOperator,
         right: Option<Type>,
     },
+    /// When the type of the operand for a unary operation is not valid.
     InvalidUnaryType {
         operator: UnaryOperator,
         operand: Type,
     },
+    /// When a division by zero occurs.
     DivisionByZero,
-    UndefinedIdentifier {
-        identifier: String,
-    },
-    UninitialisedVariable {
-        identifier: String,
-    },
+    /// When there is an attempt to get the value of a variable which has not been defined.
+    UndefinedIdentifier { identifier: String },
+    /// When there is an attempt to get the value of a variable which has not been initialised.
+    UninitialisedVariable { identifier: String },
+    /// When the valuue of the condition for a control flow statement does not have the type of Boolean.
     NonBooleanControlFlowCondition {
         condition: Type,
         control_flow: ControlFlow,
@@ -118,32 +122,41 @@ impl Debug for EvaluationError {
 
 impl Error for EvaluationError {}
 
+/// Represents all possible expressions within the slang programming language.
 #[derive(Debug, Clone)]
 pub enum Expression {
+    /// Ternary expressions, in the form `condition ? if_true : if_false`.
     Ternary {
         condition: Box<Expression>,
         left: Box<Expression>,
         right: Box<Expression>,
     },
+    /// Binary expressions, in the form `left operator right`.
     Binary {
         left: Box<Expression>,
         operator: BinaryOperator,
         right: Box<Expression>,
     },
+    /// Unary expressions, in the form `operator operand`.
     Unary {
         operator: UnaryOperator,
         operand: Box<Expression>,
     },
+    /// An assignment expression, which yields the assigned value.
     Assignment {
         identifier: String,
         value: Box<Expression>,
     },
+    /// An expression surrounded by parenthesis.
     Grouping(Box<Expression>),
+    /// A literal value.
     Literal(Value),
+    /// A reference to a variable.
     Variable(String),
 }
 
 impl Expression {
+    /// Evaluates the expression.
     pub fn evaluate(self, environment: &mut Environment) -> Result<Value, EvaluationError> {
         match self {
             Self::Ternary {
@@ -178,6 +191,7 @@ impl Expression {
         }
     }
 
+    /// Evaluates a ternary expression.
     fn evaluate_ternary(
         environment: &mut Environment,
         condition: Box<Expression>,
@@ -199,6 +213,7 @@ impl Expression {
         }
     }
 
+    /// Evaluates a binary expression.
     fn evaluate_binary(
         environment: &mut Environment,
         left: Box<Expression>,
@@ -418,6 +433,7 @@ impl Expression {
         })
     }
 
+    /// Evaluates a unary expression.
     fn evaluate_unary(
         environment: &mut Environment,
         operator: UnaryOperator,
@@ -446,6 +462,7 @@ impl Expression {
     }
 }
 
+/// All valid binary operators.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinaryOperator {
     // Arithmetic operators
@@ -470,6 +487,7 @@ pub enum BinaryOperator {
 }
 
 impl BinaryOperator {
+    /// How the binary operator will appear in source code.
     pub fn raw(&self) -> String {
         match self {
             Self::Add => "+",
@@ -493,6 +511,7 @@ impl BinaryOperator {
     }
 }
 
+/// All valid unary operators.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnaryOperator {
     Minus,
@@ -500,6 +519,7 @@ pub enum UnaryOperator {
 }
 
 impl UnaryOperator {
+    /// How the unary operator will appear in source code.
     pub fn raw(&self) -> String {
         match self {
             Self::Minus => "-",
