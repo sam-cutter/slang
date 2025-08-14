@@ -103,7 +103,7 @@ impl Debug for EvaluationError {
 
 impl Error for EvaluationError {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Ternary {
         condition: Box<Expression>,
@@ -431,7 +431,7 @@ impl Expression {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinaryOperator {
     // Arithmetic operators
     Add,
@@ -478,7 +478,7 @@ impl BinaryOperator {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnaryOperator {
     Minus,
     NOT,

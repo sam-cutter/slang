@@ -10,6 +10,7 @@ program -> statement*
 statement -> printStatement
            | variableDeclaration
            | ifStatement
+           | whileLoop
            | block
            | expressionStatement
 
@@ -20,6 +21,8 @@ printStatement -> "print" expression ";"
 variableDeclaration -> "let" IDENTIFIER ("=" expression)? ";"
 
 ifStatement -> "if" expression block ("else" (block | ifStatement))?
+
+whileLoop -> "while" expression block
 
 block -> "{" statement* "}"
 

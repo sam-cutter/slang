@@ -4,6 +4,7 @@ use crate::{
     value::Value,
 };
 
+#[derive(Clone)]
 pub enum Statement {
     Print(Expression),
     VariableDeclaration {
@@ -14,6 +15,10 @@ pub enum Statement {
         condition: Expression,
         execute_if_true: Box<Statement>,
         execute_if_false: Option<Box<Statement>>,
+    },
+    WhileLoop {
+        condition: Expression,
+        block: Box<Statement>,
     },
     Block {
         statements: Vec<Statement>,
@@ -51,10 +56,18 @@ impl Statement {
                         }
                     }
                 } else {
-                    // TODO: Add correct evaluation error
+                    // TODO: add correct evaluation error
                     todo!()
                 }
             }
+            Self::WhileLoop { condition, block } => Ok(
+                while match condition.clone().evaluate(environment)? {
+                    Value::Boolean(condition) => condition,
+                    _ => todo!(), // TOOD: add correct evaluation error
+                } {
+                    block.clone().execute(environment)?;
+                },
+            ),
             Self::Block { statements } => {
                 environment.enter_scope();
 

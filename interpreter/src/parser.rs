@@ -119,6 +119,8 @@ impl Parser {
             self.variable_declaration()
         } else if self.tokens.matches(&[TokenKind::If]).is_some() {
             self.if_statement()
+        } else if self.tokens.matches(&[TokenKind::While]).is_some() {
+            self.while_loop()
         } else if self.tokens.matches(&[TokenKind::LeftBrace]).is_some() {
             self.block()
         } else {
@@ -171,6 +173,15 @@ impl Parser {
             execute_if_true,
             execute_if_false,
         })
+    }
+
+    fn while_loop(&mut self) -> Result<Statement, ParserError> {
+        let condition = self.expression()?;
+
+        self.tokens.consume(TokenKind::LeftBrace)?;
+        let block = Box::new(self.block()?);
+
+        Ok(Statement::WhileLoop { condition, block })
     }
 
     fn block(&mut self) -> Result<Statement, ParserError> {
