@@ -1,6 +1,7 @@
 use crate::{
     environment::Environment,
-    expression::{EvaluationError, Expression, Literal},
+    expression::{EvaluationError, Expression},
+    value::Value,
 };
 
 pub enum Statement {
@@ -40,7 +41,7 @@ impl Statement {
                 execute_if_true,
                 execute_if_false,
             } => {
-                if let Literal::Boolean(condition) = condition.evaluate(environment)? {
+                if let Value::Boolean(condition) = condition.evaluate(environment)? {
                     if condition {
                         execute_if_true.execute(environment)
                     } else {
@@ -51,6 +52,7 @@ impl Statement {
                     }
                 } else {
                     // TODO: Add correct evaluation error
+                    todo!()
                 }
             }
             Self::Block { statements } => {

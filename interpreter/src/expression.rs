@@ -3,20 +3,23 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use crate::environment::{Environment, EnvironmentError};
+use crate::{
+    environment::{Environment, EnvironmentError},
+    value::{Type, Value},
+};
 
 pub enum EvaluationError {
     NonBooleanTernaryCondition {
-        condition: SlangType,
+        condition: Type,
     },
     InvalidBinaryTypes {
-        left: SlangType,
+        left: Type,
         operator: BinaryOperator,
-        right: SlangType,
+        right: Type,
     },
     InvalidUnaryType {
         operator: UnaryOperator,
-        operand: SlangType,
+        operand: Type,
     },
     DivisionByZero,
     UndefinedIdentifier {
@@ -118,12 +121,12 @@ pub enum Expression {
         value: Box<Expression>,
     },
     Grouping(Box<Expression>),
-    Literal(Literal),
+    Literal(Value),
     Variable(String),
 }
 
 impl Expression {
-    pub fn evaluate(self, environment: &mut Environment) -> Result<Literal, EvaluationError> {
+    pub fn evaluate(self, environment: &mut Environment) -> Result<Value, EvaluationError> {
         match self {
             Self::Ternary {
                 condition,
@@ -162,10 +165,10 @@ impl Expression {
         condition: Box<Expression>,
         left: Box<Expression>,
         right: Box<Expression>,
-    ) -> Result<Literal, EvaluationError> {
+    ) -> Result<Value, EvaluationError> {
         let condition = condition.evaluate(environment)?;
 
-        if let Literal::Boolean(condition) = condition {
+        if let Value::Boolean(condition) = condition {
             if condition {
                 return left.evaluate(environment);
             } else {
@@ -183,18 +186,18 @@ impl Expression {
         left: Box<Expression>,
         operator: BinaryOperator,
         right: Box<Expression>,
-    ) -> Result<Literal, EvaluationError> {
+    ) -> Result<Value, EvaluationError> {
         let operands = (left.evaluate(environment)?, right.evaluate(environment)?);
 
         Ok(match operator {
             BinaryOperator::Add => match operands {
-                (Literal::String(left), Literal::String(right)) => {
+                (Value::String(left), Value::String(right)) => {
                     let mut new = left;
                     new.push_str(&right);
-                    Literal::String(new)
+                    Value::String(new)
                 }
-                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left + right),
-                (Literal::Float(left), Literal::Float(right)) => Literal::Float(left + right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left + right),
+                (Value::Float(left), Value::Float(right)) => Value::Float(left + right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -203,8 +206,8 @@ impl Expression {
             },
 
             BinaryOperator::Subtract => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left - right),
-                (Literal::Float(left), Literal::Float(right)) => Literal::Float(left - right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
+                (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -213,8 +216,8 @@ impl Expression {
             },
 
             BinaryOperator::Multiply => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left * right),
-                (Literal::Float(left), Literal::Float(right)) => Literal::Float(left * right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
+                (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -223,19 +226,19 @@ impl Expression {
             },
 
             BinaryOperator::Divide => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => {
+                (Value::Integer(left), Value::Integer(right)) => {
                     if right == 0 {
                         return Err(EvaluationError::DivisionByZero);
                     }
 
-                    Literal::Integer(left / right)
+                    Value::Integer(left / right)
                 }
-                (Literal::Float(left), Literal::Float(right)) => {
+                (Value::Float(left), Value::Float(right)) => {
                     if right == 0.0 {
                         return Err(EvaluationError::DivisionByZero);
                     }
 
-                    Literal::Float(left / right)
+                    Value::Float(left / right)
                 }
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
@@ -245,14 +248,10 @@ impl Expression {
             },
 
             BinaryOperator::EqualTo => match operands {
-                (Literal::String(left), Literal::String(right)) => Literal::Boolean(left == right),
-                (Literal::Integer(left), Literal::Integer(right)) => {
-                    Literal::Boolean(left == right)
-                }
-                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left == right),
-                (Literal::Boolean(left), Literal::Boolean(right)) => {
-                    Literal::Boolean(left == right)
-                }
+                (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left == right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -261,15 +260,11 @@ impl Expression {
             },
 
             BinaryOperator::NotEqualTo => match operands {
-                (Literal::String(left), Literal::String(right)) => Literal::Boolean(left != right),
-                (Literal::Integer(left), Literal::Integer(right)) => {
-                    Literal::Boolean(left != right)
-                }
-                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left != right),
+                (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
 
-                (Literal::Boolean(left), Literal::Boolean(right)) => {
-                    Literal::Boolean(left != right)
-                }
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -278,8 +273,8 @@ impl Expression {
             },
 
             BinaryOperator::GreaterThan => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => Literal::Boolean(left > right),
-                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left > right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -288,10 +283,8 @@ impl Expression {
             },
 
             BinaryOperator::GreaterThanOrEqualTo => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => {
-                    Literal::Boolean(left >= right)
-                }
-                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left >= right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left >= right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left >= right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
 
@@ -302,8 +295,8 @@ impl Expression {
             },
 
             BinaryOperator::LessThan => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => Literal::Boolean(left < right),
-                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left < right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
 
@@ -314,10 +307,8 @@ impl Expression {
             },
 
             BinaryOperator::LessThanOrEqualTo => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => {
-                    Literal::Boolean(left <= right)
-                }
-                (Literal::Float(left), Literal::Float(right)) => Literal::Boolean(left <= right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left <= right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left <= right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -326,9 +317,7 @@ impl Expression {
             },
 
             BinaryOperator::AND => match operands {
-                (Literal::Boolean(left), Literal::Boolean(right)) => {
-                    Literal::Boolean(left && right)
-                }
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left && right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -337,9 +326,7 @@ impl Expression {
             },
 
             BinaryOperator::OR => match operands {
-                (Literal::Boolean(left), Literal::Boolean(right)) => {
-                    Literal::Boolean(left || right)
-                }
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left || right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -348,8 +335,8 @@ impl Expression {
             },
 
             BinaryOperator::BitwiseAND => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left & right),
-                (Literal::Boolean(left), Literal::Boolean(right)) => Literal::Boolean(left & right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -358,8 +345,8 @@ impl Expression {
             },
 
             BinaryOperator::BitwiseOR => match operands {
-                (Literal::Integer(left), Literal::Integer(right)) => Literal::Integer(left | right),
-                (Literal::Boolean(left), Literal::Boolean(right)) => Literal::Boolean(left | right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
                 (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
                     operator: operator,
@@ -373,76 +360,27 @@ impl Expression {
         environment: &mut Environment,
         operator: UnaryOperator,
         operand: Box<Expression>,
-    ) -> Result<Literal, EvaluationError> {
+    ) -> Result<Value, EvaluationError> {
         let operand = operand.evaluate(environment)?;
 
         Ok(match operator {
             UnaryOperator::Minus => match operand {
-                Literal::Integer(operand) => Literal::Integer(-operand),
-                Literal::Float(operand) => Literal::Float(-operand),
+                Value::Integer(operand) => Value::Integer(-operand),
+                Value::Float(operand) => Value::Float(-operand),
                 _ => Err(EvaluationError::InvalidUnaryType {
                     operator,
                     operand: operand.slang_type(),
                 })?,
             },
             UnaryOperator::NOT => match operand {
-                Literal::Integer(operand) => Literal::Integer(!operand),
-                Literal::Boolean(operand) => Literal::Boolean(!operand),
+                Value::Integer(operand) => Value::Integer(!operand),
+                Value::Boolean(operand) => Value::Boolean(!operand),
                 _ => Err(EvaluationError::InvalidUnaryType {
                     operator,
                     operand: operand.slang_type(),
                 })?,
             },
         })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Literal {
-    String(String),
-    Float(f64),
-    Integer(i32),
-    Boolean(bool),
-}
-
-impl Display for Literal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::String(value) => write!(f, "{}", value),
-            Self::Float(value) => write!(f, "{}", value),
-            Self::Integer(value) => write!(f, "{}", value),
-            Self::Boolean(value) => write!(f, "{}", value),
-        }
-    }
-}
-
-impl Literal {
-    pub fn slang_type(&self) -> SlangType {
-        match self {
-            Self::String(_) => SlangType::String,
-            Self::Float(_) => SlangType::Float,
-            Self::Integer(_) => SlangType::Integer,
-            Self::Boolean(_) => SlangType::Boolean,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum SlangType {
-    String,
-    Float,
-    Integer,
-    Boolean,
-}
-
-impl Display for SlangType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::String => write!(f, "String"),
-            Self::Float => write!(f, "Float"),
-            Self::Integer => write!(f, "Integer"),
-            Self::Boolean => write!(f, "Boolean"),
-        }
     }
 }
 

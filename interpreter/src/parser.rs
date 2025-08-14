@@ -4,11 +4,12 @@ use std::{
 };
 
 use crate::{
-    expression::{BinaryOperator, Expression, Literal, UnaryOperator},
+    expression::{BinaryOperator, Expression, UnaryOperator},
     source::{GeneralLocation, Location},
     statement::Statement,
     token::{TokenData, TokenKind},
     token_stream::TokenStream,
+    value::Value,
 };
 
 pub enum ParserError {
@@ -148,7 +149,29 @@ impl Parser {
         })
     }
 
-    fn if_statement(&mut self) -> Result<Statement, ParserError> {}
+    fn if_statement(&mut self) -> Result<Statement, ParserError> {
+        let condition = self.expression()?;
+
+        self.tokens.consume(TokenKind::LeftBrace)?;
+        let execute_if_true = Box::new(self.block()?);
+
+        let execute_if_false = if self.tokens.matches(&[TokenKind::Else]).is_some() {
+            if self.tokens.matches(&[TokenKind::If]).is_some() {
+                Some(Box::new(self.if_statement()?))
+            } else {
+                self.tokens.consume(TokenKind::LeftBrace)?;
+                Some(Box::new(self.block()?))
+            }
+        } else {
+            None
+        };
+
+        Ok(Statement::IfStatement {
+            condition,
+            execute_if_true,
+            execute_if_false,
+        })
+    }
 
     fn block(&mut self) -> Result<Statement, ParserError> {
         let mut statements = Vec::new();
@@ -374,13 +397,13 @@ impl Parser {
                     return Ok(Expression::Grouping(Box::new(expression)));
                 }
 
-                TokenData::String(string) => Literal::String(string),
+                TokenData::String(string) => Value::String(string),
 
-                TokenData::Float(float) => Literal::Float(float),
+                TokenData::Float(float) => Value::Float(float),
 
-                TokenData::Integer(integer) => Literal::Integer(integer),
+                TokenData::Integer(integer) => Value::Integer(integer),
 
-                TokenData::Boolean(boolean) => Literal::Boolean(boolean),
+                TokenData::Boolean(boolean) => Value::Boolean(boolean),
 
                 TokenData::Identifier(identifier) => {
                     return Ok(Expression::Variable(identifier));

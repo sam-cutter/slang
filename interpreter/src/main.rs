@@ -17,6 +17,7 @@ mod source;
 mod statement;
 mod token;
 mod token_stream;
+mod value;
 
 fn main() {
     let args = &env::args().collect::<Vec<String>>()[..];

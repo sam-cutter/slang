@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::expression::Literal;
+use crate::value::Value;
 
 pub enum EnvironmentError {
     UndefinedAssignmentTarget { identifier: String },
@@ -9,7 +9,7 @@ pub enum EnvironmentError {
 }
 
 pub struct Environment {
-    scopes: Vec<HashMap<String, Option<Literal>>>,
+    scopes: Vec<HashMap<String, Option<Value>>>,
 }
 
 impl Environment {
@@ -19,7 +19,7 @@ impl Environment {
         }
     }
 
-    pub fn define(&mut self, identifier: String, value: Option<Literal>) {
+    pub fn define(&mut self, identifier: String, value: Option<Value>) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(identifier, value);
         } else {
@@ -31,7 +31,7 @@ impl Environment {
         }
     }
 
-    pub fn assign(&mut self, identifier: String, value: Literal) -> Result<(), EnvironmentError> {
+    pub fn assign(&mut self, identifier: String, value: Value) -> Result<(), EnvironmentError> {
         if self.scopes.is_empty() {
             return Err(EnvironmentError::UndefinedAssignmentTarget { identifier });
         }
@@ -46,7 +46,7 @@ impl Environment {
         Err(EnvironmentError::UndefinedAssignmentTarget { identifier })
     }
 
-    pub fn get(&self, identifier: &str) -> Result<Literal, EnvironmentError> {
+    pub fn get(&self, identifier: &str) -> Result<Value, EnvironmentError> {
         for scope in self.scopes.iter().rev() {
             match scope.get(identifier) {
                 Some(Some(value)) => return Ok(value.clone()),
