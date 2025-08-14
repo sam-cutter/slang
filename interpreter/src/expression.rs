@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     environment::{Environment, EnvironmentError},
+    statement::ControlFlow,
     value::{Type, Value},
 };
 
@@ -27,6 +28,10 @@ pub enum EvaluationError {
     },
     UninitialisedVariable {
         identifier: String,
+    },
+    NonBooleanControlFlowCondition {
+        condition: Type,
+        control_flow: ControlFlow,
     },
 }
 
@@ -89,6 +94,16 @@ impl Display for EvaluationError {
                     f,
                     "[evaluation error] The variable `{}` has not been initialised.",
                     identifier
+                )
+            }
+            Self::NonBooleanControlFlowCondition {
+                condition,
+                control_flow,
+            } => {
+                write!(
+                    f,
+                    "[evaluation error] Expected Boolean {} condition, found {}.",
+                    control_flow, condition
                 )
             }
         }
