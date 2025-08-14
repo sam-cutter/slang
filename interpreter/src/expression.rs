@@ -15,7 +15,7 @@ pub enum EvaluationError {
     InvalidBinaryTypes {
         left: Type,
         operator: BinaryOperator,
-        right: Type,
+        right: Option<Type>,
     },
     InvalidUnaryType {
         operator: UnaryOperator,
@@ -60,10 +60,13 @@ impl Display for EvaluationError {
                 right,
             } => write!(
                 f,
-                "[evaluation error] The `{}` operator is not defined for {} and {}.",
+                "[evaluation error] The `{}` operator is not defined for {}{}.",
                 operator.raw(),
                 left,
-                right
+                match right {
+                    Some(right) => format!(" and {}", right),
+                    None => "".to_string(),
+                }
             ),
             Self::InvalidUnaryType { operator, operand } => write!(
                 f,
@@ -187,172 +190,216 @@ impl Expression {
         operator: BinaryOperator,
         right: Box<Expression>,
     ) -> Result<Value, EvaluationError> {
-        let operands = (left.evaluate(environment)?, right.evaluate(environment)?);
-
         Ok(match operator {
-            BinaryOperator::Add => match operands {
-                (Value::String(left), Value::String(right)) => {
-                    let mut new = left;
-                    new.push_str(&right);
-                    Value::String(new)
-                }
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left + right),
-                (Value::Float(left), Value::Float(right)) => Value::Float(left + right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::Subtract => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
-                (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::Multiply => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
-                (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::Divide => match operands {
-                (Value::Integer(left), Value::Integer(right)) => {
-                    if right == 0 {
-                        return Err(EvaluationError::DivisionByZero);
+            BinaryOperator::Add => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::String(left), Value::String(right)) => {
+                        let mut new = left;
+                        new.push_str(&right);
+                        Value::String(new)
                     }
-
-                    Value::Integer(left / right)
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left + right),
+                    (Value::Float(left), Value::Float(right)) => Value::Float(left + right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
                 }
-                (Value::Float(left), Value::Float(right)) => {
-                    if right == 0.0 {
-                        return Err(EvaluationError::DivisionByZero);
+            }
+
+            BinaryOperator::Subtract => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
+                    (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::Multiply => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
+                    (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::Divide => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => {
+                        if right == 0 {
+                            return Err(EvaluationError::DivisionByZero);
+                        }
+
+                        Value::Integer(left / right)
                     }
+                    (Value::Float(left), Value::Float(right)) => {
+                        if right == 0.0 {
+                            return Err(EvaluationError::DivisionByZero);
+                        }
 
-                    Value::Float(left / right)
+                        Value::Float(left / right)
+                    }
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
                 }
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+            }
+
+            BinaryOperator::EqualTo => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
+                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left == right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::NotEqualTo => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
+
+                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::GreaterThan => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::GreaterThanOrEqualTo => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left >= right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left >= right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::LessThan => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::LessThanOrEqualTo => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left <= right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left <= right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::AND => match left.evaluate(environment)? {
+                Value::Boolean(left) => {
+                    if left {
+                        match right.evaluate(environment)? {
+                            Value::Boolean(right) => Value::Boolean(left && right),
+                            right => Err(EvaluationError::InvalidBinaryTypes {
+                                left: Type::Boolean,
+                                operator,
+                                right: Some(right.slang_type()),
+                            })?,
+                        }
+                    } else {
+                        Value::Boolean(false)
+                    }
+                }
+                left => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
+                    operator,
+                    right: None,
                 })?,
             },
 
-            BinaryOperator::EqualTo => match operands {
-                (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left == right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+            BinaryOperator::OR => match left.evaluate(environment)? {
+                Value::Boolean(left) => {
+                    if left {
+                        Value::Boolean(true)
+                    } else {
+                        match right.evaluate(environment)? {
+                            Value::Boolean(right) => Value::Boolean(left || right),
+                            right => Err(EvaluationError::InvalidBinaryTypes {
+                                left: Type::Boolean,
+                                operator,
+                                right: Some(right.slang_type()),
+                            })?,
+                        }
+                    }
+                }
+                left => Err(EvaluationError::InvalidBinaryTypes {
                     left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
+                    operator,
+                    right: None,
                 })?,
             },
 
-            BinaryOperator::NotEqualTo => match operands {
-                (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
+            BinaryOperator::BitwiseAND => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
+                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
 
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::GreaterThan => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::GreaterThanOrEqualTo => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left >= right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left >= right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-
-                    operator: operator,
-
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::LessThan => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-
-                    operator: operator,
-
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::LessThanOrEqualTo => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left <= right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left <= right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::AND => match operands {
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left && right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::OR => match operands {
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left || right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::BitwiseAND => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
-
-            BinaryOperator::BitwiseOR => match operands {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator: operator,
-                    right: right.slang_type(),
-                })?,
-            },
+            BinaryOperator::BitwiseOR => {
+                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
+                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
         })
     }
 
