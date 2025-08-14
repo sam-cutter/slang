@@ -216,7 +216,7 @@ impl Parser {
         if let Some(equals) = self.tokens.matches(&[TokenKind::Equal]) {
             let value = self.assignment()?;
 
-            if let Expression::Variable(identifier) = expression {
+            if let Expression::Variable { identifier } = expression {
                 Ok(Expression::Assignment {
                     identifier: identifier,
                     value: Box::new(value),
@@ -399,29 +399,33 @@ impl Parser {
         ];
 
         if let Some(token) = self.tokens.matches(&expected) {
-            Ok(Expression::Literal(match token.data() {
-                TokenData::LeftParenthesis => {
-                    let expression = self.expression()?;
+            Ok(Expression::Literal {
+                value: match token.data() {
+                    TokenData::LeftParenthesis => {
+                        let expression = self.expression()?;
 
-                    self.tokens.consume(TokenKind::RightParenthesis)?;
+                        self.tokens.consume(TokenKind::RightParenthesis)?;
 
-                    return Ok(Expression::Grouping(Box::new(expression)));
-                }
+                        return Ok(Expression::Grouping {
+                            contained: Box::new(expression),
+                        });
+                    }
 
-                TokenData::String(string) => Value::String(string),
+                    TokenData::String(string) => Value::String(string),
 
-                TokenData::Float(float) => Value::Float(float),
+                    TokenData::Float(float) => Value::Float(float),
 
-                TokenData::Integer(integer) => Value::Integer(integer),
+                    TokenData::Integer(integer) => Value::Integer(integer),
 
-                TokenData::Boolean(boolean) => Value::Boolean(boolean),
+                    TokenData::Boolean(boolean) => Value::Boolean(boolean),
 
-                TokenData::Identifier(identifier) => {
-                    return Ok(Expression::Variable(identifier));
-                }
+                    TokenData::Identifier(identifier) => {
+                        return Ok(Expression::Variable { identifier });
+                    }
 
-                _ => unreachable!(),
-            }))
+                    _ => unreachable!(),
+                },
+            })
         } else if let Some(token) = self.tokens.peek() {
             Err(ParserError::ExpectedToken {
                 expected: expected.to_vec(),

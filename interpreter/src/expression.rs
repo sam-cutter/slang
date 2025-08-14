@@ -148,11 +148,11 @@ pub enum Expression {
         value: Box<Expression>,
     },
     /// An expression surrounded by parenthesis.
-    Grouping(Box<Expression>),
+    Grouping { contained: Box<Expression> },
     /// A literal value.
-    Literal(Value),
+    Literal { value: Value },
     /// A reference to a variable.
-    Variable(String),
+    Variable { identifier: String },
 }
 
 impl Expression {
@@ -183,11 +183,11 @@ impl Expression {
                 Ok(value)
             }
 
-            Self::Grouping(expression) => expression.evaluate(environment),
+            Self::Grouping { contained } => contained.evaluate(environment),
 
-            Self::Literal(literal) => Ok(literal),
+            Self::Literal { value } => Ok(value),
 
-            Self::Variable(identifier) => Ok(environment.get(&identifier)?),
+            Self::Variable { identifier } => Ok(environment.get(&identifier)?),
         }
     }
 
