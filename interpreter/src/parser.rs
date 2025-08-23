@@ -117,6 +117,8 @@ impl Parser {
             self.print_statement()
         } else if self.tokens.matches(&[TokenKind::Let]).is_some() {
             self.variable_declaration()
+        } else if self.tokens.matches(&[TokenKind::Fu]).is_some() {
+            self.function_definition()
         } else if self.tokens.matches(&[TokenKind::If]).is_some() {
             self.if_statement()
         } else if self.tokens.matches(&[TokenKind::While]).is_some() {
@@ -148,6 +150,33 @@ impl Parser {
         Ok(Statement::VariableDeclaration {
             identifier,
             initialiser,
+        })
+    }
+
+    fn function_definition(&mut self) -> Result<Statement, ParserError> {
+        let identifier = self.tokens.consume_identifier()?;
+
+        self.tokens.consume(TokenKind::LeftParenthesis)?;
+
+        let mut parameters = Vec::new();
+
+        if let Ok(parameter) = self.tokens.consume_identifier() {
+            parameters.push(parameter);
+
+            while self.tokens.matches(&[TokenKind::Comma]).is_some() {
+                parameters.push(self.tokens.consume_identifier()?);
+            }
+        }
+
+        self.tokens.consume(TokenKind::RightParenthesis)?;
+
+        self.tokens.consume(TokenKind::LeftBrace)?;
+        let block = self.block()?;
+
+        Ok(Statement::FunctionDefinition {
+            identifier,
+            parameters,
+            block: Box::new(block),
         })
     }
 

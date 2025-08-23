@@ -36,6 +36,11 @@ pub enum Statement {
         execute_if_true: Box<Statement>,
         execute_if_false: Option<Box<Statement>>,
     },
+    FunctionDefinition {
+        identifier: String,
+        parameters: Vec<String>,
+        block: Box<Statement>,
+    },
     WhileLoop {
         condition: Expression,
         block: Box<Statement>,
@@ -60,6 +65,13 @@ impl Statement {
                 };
 
                 Ok(environment.define(identifier, initialiser))
+            }
+            Self::FunctionDefinition {
+                identifier,
+                parameters,
+                block,
+            } => {
+                todo!()
             }
             Self::IfStatement {
                 condition,
