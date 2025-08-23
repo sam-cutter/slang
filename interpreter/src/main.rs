@@ -80,12 +80,8 @@ fn run(source: &str, environment: &mut Environment) {
 
     match parser.parse() {
         Ok(statements) => {
-            for statement in statements {
-                if let Err(error) = statement.execute(environment) {
-                    eprintln!("{}", error);
-                    // TODO: return with an exit code
-                    return;
-                }
+            if let Err(error) = statements.execute(environment) {
+                eprintln!("{}", error);
             }
         }
         Err(errors) => {

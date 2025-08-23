@@ -1,4 +1,4 @@
-//! Expressions within the slang programming langauge.
+//! Expressions within the slang programming language.
 
 use std::{
     error::Error,
@@ -123,7 +123,7 @@ impl Debug for EvaluationError {
 impl Error for EvaluationError {}
 
 /// Represents all possible expressions within the slang programming language.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Expression {
     /// Ternary expressions, in the form `condition ? if_true : if_false`.
     Ternary {

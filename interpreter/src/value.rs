@@ -1,11 +1,17 @@
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
+use crate::statement::Statement;
+
+#[derive(Clone)]
 pub enum Value {
     String(String),
     Float(f64),
     Integer(i32),
     Boolean(bool),
+    Function {
+        parameters: Vec<String>,
+        block: Box<Statement>,
+    },
 }
 
 impl Display for Value {
@@ -15,6 +21,12 @@ impl Display for Value {
             Self::Float(value) => write!(f, "{}", value),
             Self::Integer(value) => write!(f, "{}", value),
             Self::Boolean(value) => write!(f, "{}", value),
+            Self::Function {
+                parameters,
+                block: _,
+            } => {
+                write!(f, "<function with {} named parameters>", parameters.len())
+            }
         }
     }
 }
@@ -26,6 +38,10 @@ impl Value {
             Self::Float(_) => Type::Float,
             Self::Integer(_) => Type::Integer,
             Self::Boolean(_) => Type::Boolean,
+            Self::Function {
+                parameters: _,
+                block: _,
+            } => Type::Function,
         }
     }
 }
@@ -36,6 +52,7 @@ pub enum Type {
     Float,
     Integer,
     Boolean,
+    Function,
 }
 
 impl Display for Type {
@@ -45,6 +62,7 @@ impl Display for Type {
             Self::Float => write!(f, "Float"),
             Self::Integer => write!(f, "Integer"),
             Self::Boolean => write!(f, "Boolean"),
+            Self::Function => write!(f, "Function"),
         }
     }
 }

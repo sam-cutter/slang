@@ -70,9 +70,7 @@ impl Statement {
                 identifier,
                 parameters,
                 block,
-            } => {
-                todo!()
-            }
+            } => Ok(environment.define(identifier, Some(Value::Function { parameters, block }))),
             Self::IfStatement {
                 condition,
                 execute_if_true,
@@ -110,7 +108,20 @@ impl Statement {
             Self::Block { statements } => {
                 environment.enter_scope();
 
+                let mut non_definitions = Vec::new();
+
                 for statement in statements {
+                    match statement {
+                        Statement::FunctionDefinition {
+                            identifier: _,
+                            parameters: _,
+                            block: _,
+                        } => statement.execute(environment)?,
+                        _ => non_definitions.push(statement),
+                    }
+                }
+
+                for statement in non_definitions {
                     statement.execute(environment)?;
                 }
 
