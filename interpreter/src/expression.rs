@@ -32,7 +32,7 @@ pub enum EvaluationError {
     UndefinedIdentifier { identifier: String },
     /// When there is an attempt to get the value of a variable which has not been initialised.
     UninitialisedVariable { identifier: String },
-    /// When the valuue of the condition for a control flow statement does not have the type of Boolean.
+    /// When the value of the condition for a control flow statement does not have the type of Boolean.
     NonBooleanControlFlowCondition {
         condition: Type,
         control_flow: ControlFlow,
