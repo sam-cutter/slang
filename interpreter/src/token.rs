@@ -38,7 +38,7 @@ impl Token {
 
 /// The data contained within a token.
 ///
-/// This is simnilar to [TokenKind], however contains more information. For example, the [TokenData::Integer] variant has an [i32] field which stores the integer that token represents, however [TokenKind::Integer] has no contained fields, and is simply a flag stating that the token represents an integer.
+/// This is similar to [TokenKind], however contains more information. For example, the [TokenData::Integer] variant has an [i32] field which stores the integer that token represents, however [TokenKind::Integer] has no contained fields, and is simply a flag stating that the token represents an integer.
 #[derive(Debug)]
 pub enum TokenData {
     /// The `(` character.
