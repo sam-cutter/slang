@@ -14,7 +14,9 @@ use crate::{
 /// All errors which can occur while evaluating an expression.
 pub enum EvaluationError {
     /// When the value of the condition for a ternary expression does not have the type of Boolean.
-    NonBooleanTernaryCondition { condition: Type },
+    NonBooleanTernaryCondition {
+        condition: Type,
+    },
     /// When the types of the operands for a binary operation are not valid.
     InvalidBinaryTypes {
         left: Type,
@@ -29,13 +31,24 @@ pub enum EvaluationError {
     /// When a division by zero occurs.
     DivisionByZero,
     /// When there is an attempt to get the value of a variable which has not been defined.
-    UndefinedIdentifier { identifier: String },
+    UndefinedIdentifier {
+        identifier: String,
+    },
     /// When there is an attempt to get the value of a variable which has not been initialised.
-    UninitialisedVariable { identifier: String },
+    UninitialisedVariable {
+        identifier: String,
+    },
     /// When the value of the condition for a control flow statement does not have the type of Boolean.
     NonBooleanControlFlowCondition {
         condition: Type,
         control_flow: ControlFlow,
+    },
+    AttemptedCallOfNonFunction {
+        attempt: Type,
+    },
+    IncorrectArgumentCount {
+        expected: usize,
+        passed: usize,
     },
 }
 
@@ -57,10 +70,12 @@ impl From<EnvironmentError> for EvaluationError {
 
 impl Display for EvaluationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[evaluation error] ")?;
+
         match self {
             Self::NonBooleanTernaryCondition { condition } => write!(
                 f,
-                "[evaluation error] Expected Boolean operand for ternary condition, found {}.",
+                "Expected Boolean operand for ternary condition, found {}.",
                 condition
             ),
             Self::InvalidBinaryTypes {
@@ -69,7 +84,7 @@ impl Display for EvaluationError {
                 right,
             } => write!(
                 f,
-                "[evaluation error] The `{}` operator is not defined for {}{}.",
+                "The `{}` operator is not defined for {}{}.",
                 operator.raw(),
                 left,
                 match right {
@@ -79,26 +94,18 @@ impl Display for EvaluationError {
             ),
             Self::InvalidUnaryType { operator, operand } => write!(
                 f,
-                "[evaluation error] The unary `{}` operator is not defined for {}.",
+                "The unary `{}` operator is not defined for {}.",
                 operator.raw(),
                 operand
             ),
             Self::DivisionByZero => {
-                write!(f, "[evaluation error] Division by zero.")
+                write!(f, "Division by zero.")
             }
             Self::UndefinedIdentifier { identifier } => {
-                write!(
-                    f,
-                    "[evaluation error] The identifier `{}` is not defined.",
-                    identifier
-                )
+                write!(f, "The identifier `{}` is not defined.", identifier)
             }
             Self::UninitialisedVariable { identifier } => {
-                write!(
-                    f,
-                    "[evaluation error] The variable `{}` has not been initialised.",
-                    identifier
-                )
+                write!(f, "The variable `{}` has not been initialised.", identifier)
             }
             Self::NonBooleanControlFlowCondition {
                 condition,
@@ -106,8 +113,22 @@ impl Display for EvaluationError {
             } => {
                 write!(
                     f,
-                    "[evaluation error] Expected Boolean {} condition, found {}.",
+                    "Expected Boolean {} condition, found {}.",
                     control_flow, condition
+                )
+            }
+            Self::AttemptedCallOfNonFunction { attempt } => {
+                write!(
+                    f,
+                    "Attempted to 'call' a value of type {} like a function.",
+                    attempt
+                )
+            }
+            Self::IncorrectArgumentCount { expected, passed } => {
+                write!(
+                    f,
+                    "Expected {} arguments, but received {}.",
+                    expected, passed
                 )
             }
         }
@@ -142,6 +163,11 @@ pub enum Expression {
         operator: UnaryOperator,
         operand: Box<Expression>,
     },
+    /// A function call.
+    Call {
+        function: Box<Expression>,
+        arguments: Vec<Box<Expression>>,
+    },
     /// An assignment expression, which yields the assigned value.
     Assignment {
         identifier: String,
@@ -174,6 +200,11 @@ impl Expression {
             Self::Unary { operator, operand } => {
                 Expression::evaluate_unary(environment, operator, operand)
             }
+
+            Self::Call {
+                function,
+                arguments,
+            } => Expression::evaluate_call(environment, function, arguments),
 
             Self::Assignment { identifier, value } => {
                 let value = value.evaluate(environment)?;
@@ -459,6 +490,40 @@ impl Expression {
                 })?,
             },
         })
+    }
+
+    /// Evaluates a function call.
+    fn evaluate_call(
+        environment: &mut Environment,
+        function: Box<Expression>,
+        arguments: Vec<Box<Expression>>,
+    ) -> Result<Value, EvaluationError> {
+        match function.evaluate(environment)? {
+            Value::Function { parameters, block } => {
+                let mut call_environment = Environment::new();
+
+                if parameters.len() != arguments.len() {
+                    return Err(EvaluationError::IncorrectArgumentCount {
+                        expected: parameters.len(),
+                        passed: arguments.len(),
+                    });
+                }
+
+                for (parameter, argument) in parameters.into_iter().zip(arguments) {
+                    let argument = argument.evaluate(environment)?;
+
+                    call_environment.define(parameter, Some(argument));
+                }
+
+                block.execute(&mut call_environment)?;
+
+                // TODO: return any value which was returned from the function
+                Ok(Value::Integer(0))
+            }
+            other => Err(EvaluationError::AttemptedCallOfNonFunction {
+                attempt: other.slang_type(),
+            }),
+        }
     }
 }
 

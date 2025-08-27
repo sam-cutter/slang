@@ -391,7 +391,7 @@ impl Parser {
         {
             Ok(Expression::Unary {
                 operator: operator,
-                operand: Box::new(self.primary()?),
+                operand: Box::new(self.call()?),
             })
         } else if let Some((operator, location)) = self.tokens.binary_operator(&[
             BinaryOperator::Add,
@@ -413,8 +413,37 @@ impl Parser {
                 operator: operator,
             })
         } else {
-            self.primary()
+            self.call()
         }
+    }
+
+    fn call(&mut self) -> Result<Expression, ParserError> {
+        let mut function = self.primary()?;
+
+        while self.tokens.matches(&[TokenKind::LeftParenthesis]).is_some() {
+            let mut arguments = Vec::new();
+
+            if self
+                .tokens
+                .peek()
+                .is_some_and(|token| token.kind() != TokenKind::RightParenthesis)
+            {
+                arguments.push(Box::new(self.expression()?));
+
+                while self.tokens.matches(&[TokenKind::Comma]).is_some() {
+                    arguments.push(Box::new(self.expression()?));
+                }
+            }
+
+            self.tokens.consume(TokenKind::RightParenthesis)?;
+
+            function = Expression::Call {
+                function: Box::new(function),
+                arguments,
+            }
+        }
+
+        Ok(function)
     }
 
     fn primary(&mut self) -> Result<Expression, ParserError> {

@@ -21,7 +21,7 @@ printStatement -> "print" expression ";"
 
 variableDeclaration -> "let" IDENTIFIER ("=" expression)? ";"
 
-functionDefinition -> "fu" IDENTIFIER "(" ((IDENTIFIER ",")* IDENTIFIER) | ε ")" block
+functionDefinition -> "fu" IDENTIFIER "(" (IDENTIFIER ("," IDENTIFIER)*)? ")" block
 
 ifStatement -> "if" expression block ("else" (block | ifStatement))?
 
@@ -48,7 +48,9 @@ term -> factor (("+" | "-") factor)*
 
 factor -> unary (("*" | "/") unary)*
 
-unary -> ("!" | "-")? primary
+unary -> ("!" | "-")? call
+
+call -> primary ( "(" (expression ("," expression)*)? ")" )*
 
 primary -> "(" expression ")"
          | STRING
