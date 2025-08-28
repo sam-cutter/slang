@@ -72,7 +72,7 @@ impl Parser {
         let mut statements: Vec<Statement> = Vec::new();
         let mut errors: Vec<ParserError> = Vec::new();
 
-        while self.tokens.peek().is_some() {
+        while !self.tokens.at_end() {
             match self.statement() {
                 Ok(statement) => statements.push(statement),
                 Err(error) => {
@@ -113,33 +113,33 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
-        if self.tokens.matches(&[TokenKind::Print]).is_some() {
-            self.print_statement()
-        } else if self.tokens.matches(&[TokenKind::Let]).is_some() {
-            self.variable_declaration()
-        } else if self.tokens.matches(&[TokenKind::Fu]).is_some() {
-            self.function_definition()
-        } else if self.tokens.matches(&[TokenKind::If]).is_some() {
-            self.if_statement()
-        } else if self.tokens.matches(&[TokenKind::While]).is_some() {
-            self.while_loop()
-        } else if self.tokens.matches(&[TokenKind::LeftBrace]).is_some() {
-            self.block()
-        } else {
-            self.expression_statement()
+        match self.tokens.peek().map(|token| token.kind()) {
+            Some(TokenKind::Print) => self.print_statement(),
+            Some(TokenKind::Let) => self.variable_declaration(),
+            Some(TokenKind::Fu) => self.function_definition(),
+            Some(TokenKind::If) => self.if_statement(),
+            Some(TokenKind::While) => self.while_loop(),
+            Some(TokenKind::LeftBrace) => self.block(),
+            _ => self.expression_statement(),
         }
     }
 
     fn print_statement(&mut self) -> Result<Statement, ParserError> {
-        let statement = Statement::Print(self.expression()?);
+        self.tokens.consume(TokenKind::Print)?;
+
+        let expression = self.expression()?;
+
         self.tokens.consume(TokenKind::Semicolon)?;
-        Ok(statement)
+
+        Ok(Statement::Print(expression))
     }
 
     fn variable_declaration(&mut self) -> Result<Statement, ParserError> {
+        self.tokens.consume(TokenKind::Let)?;
+
         let identifier = self.tokens.consume_identifier()?;
 
-        let initialiser = if self.tokens.matches(&[TokenKind::Equal]).is_some() {
+        let initialiser = if self.tokens.matches(&[TokenKind::Equal]) {
             Some(self.expression()?)
         } else {
             None
@@ -154,6 +154,8 @@ impl Parser {
     }
 
     fn function_definition(&mut self) -> Result<Statement, ParserError> {
+        self.tokens.consume(TokenKind::Fu)?;
+
         let identifier = self.tokens.consume_identifier()?;
 
         self.tokens.consume(TokenKind::LeftParenthesis)?;
@@ -163,35 +165,45 @@ impl Parser {
         if let Ok(parameter) = self.tokens.consume_identifier() {
             parameters.push(parameter);
 
-            while self.tokens.matches(&[TokenKind::Comma]).is_some() {
+            while self.tokens.matches(&[TokenKind::Comma]) {
                 parameters.push(self.tokens.consume_identifier()?);
             }
         }
 
         self.tokens.consume(TokenKind::RightParenthesis)?;
 
-        self.tokens.consume(TokenKind::LeftBrace)?;
-        let block = self.block()?;
+        let block = Box::new(self.block()?);
 
         Ok(Statement::FunctionDefinition {
             identifier,
             parameters,
-            block: Box::new(block),
+            block,
         })
     }
 
     fn if_statement(&mut self) -> Result<Statement, ParserError> {
+        self.tokens.consume(TokenKind::If)?;
+
         let condition = self.expression()?;
 
-        self.tokens.consume(TokenKind::LeftBrace)?;
         let execute_if_true = Box::new(self.block()?);
 
-        let execute_if_false = if self.tokens.matches(&[TokenKind::Else]).is_some() {
-            if self.tokens.matches(&[TokenKind::If]).is_some() {
-                Some(Box::new(self.if_statement()?))
-            } else {
-                self.tokens.consume(TokenKind::LeftBrace)?;
-                Some(Box::new(self.block()?))
+        let execute_if_false = if self.tokens.matches(&[TokenKind::Else]) {
+            match self
+                .tokens
+                .peek()
+                .map(|token| (token.kind(), token.location()))
+            {
+                Some((TokenKind::If, _)) => Some(Box::new(self.if_statement()?)),
+                Some((TokenKind::LeftBrace, _)) => Some(Box::new(self.block()?)),
+                Some((_, location)) => Err(ParserError::ExpectedToken {
+                    expected: vec![TokenKind::If, TokenKind::LeftBrace],
+                    location: GeneralLocation::Location(location),
+                })?,
+                None => Err(ParserError::ExpectedToken {
+                    expected: vec![TokenKind::If, TokenKind::LeftBrace],
+                    location: GeneralLocation::EndOfFile,
+                })?,
             }
         } else {
             None
@@ -205,15 +217,18 @@ impl Parser {
     }
 
     fn while_loop(&mut self) -> Result<Statement, ParserError> {
+        self.tokens.consume(TokenKind::While)?;
+
         let condition = self.expression()?;
 
-        self.tokens.consume(TokenKind::LeftBrace)?;
         let block = Box::new(self.block()?);
 
         Ok(Statement::WhileLoop { condition, block })
     }
 
     fn block(&mut self) -> Result<Statement, ParserError> {
+        self.tokens.consume(TokenKind::LeftBrace)?;
+
         let mut statements = Vec::new();
 
         while self
@@ -230,9 +245,11 @@ impl Parser {
     }
 
     fn expression_statement(&mut self) -> Result<Statement, ParserError> {
-        let statement = Statement::Expression(self.expression()?);
+        let expression = self.expression()?;
+
         self.tokens.consume(TokenKind::Semicolon)?;
-        Ok(statement)
+
+        Ok(Statement::Expression(expression))
     }
 
     fn expression(&mut self) -> Result<Expression, ParserError> {
@@ -242,7 +259,7 @@ impl Parser {
     fn assignment(&mut self) -> Result<Expression, ParserError> {
         let expression = self.ternary()?;
 
-        if let Some(equals) = self.tokens.matches(&[TokenKind::Equal]) {
+        if let Some(equals) = self.tokens.only_take(&[TokenKind::Equal]) {
             let value = self.assignment()?;
 
             if let Expression::Variable { identifier } = expression {
@@ -263,7 +280,7 @@ impl Parser {
     fn ternary(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.logical()?;
 
-        if self.tokens.matches(&[TokenKind::QuestionMark]).is_some() {
+        if self.tokens.matches(&[TokenKind::QuestionMark]) {
             let left = self.logical()?;
 
             self.tokens.consume(TokenKind::Colon)?;
@@ -420,7 +437,7 @@ impl Parser {
     fn call(&mut self) -> Result<Expression, ParserError> {
         let mut function = self.primary()?;
 
-        while self.tokens.matches(&[TokenKind::LeftParenthesis]).is_some() {
+        while self.tokens.matches(&[TokenKind::LeftParenthesis]) {
             let mut arguments = Vec::new();
 
             if self
@@ -430,7 +447,7 @@ impl Parser {
             {
                 arguments.push(Box::new(self.expression()?));
 
-                while self.tokens.matches(&[TokenKind::Comma]).is_some() {
+                while self.tokens.matches(&[TokenKind::Comma]) {
                     arguments.push(Box::new(self.expression()?));
                 }
             }
@@ -456,7 +473,7 @@ impl Parser {
             TokenKind::Identifier,
         ];
 
-        if let Some(token) = self.tokens.matches(&expected) {
+        if let Some(token) = self.tokens.only_take(&expected) {
             Ok(Expression::Literal {
                 value: match token.data() {
                     TokenData::LeftParenthesis => {

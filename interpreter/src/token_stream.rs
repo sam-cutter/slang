@@ -26,7 +26,7 @@ impl TokenStream {
         self.tokens.pop_front()
     }
 
-    pub fn matches(&mut self, targets: &[TokenKind]) -> Option<Token> {
+    pub fn only_take(&mut self, targets: &[TokenKind]) -> Option<Token> {
         if let Some(next) = self.peek() {
             for target in targets {
                 if &next.kind() == target {
@@ -36,6 +36,19 @@ impl TokenStream {
         }
 
         None
+    }
+
+    pub fn matches(&mut self, targets: &[TokenKind]) -> bool {
+        if let Some(next) = self.peek() {
+            for target in targets {
+                if &next.kind() == target {
+                    self.advance();
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
     pub fn binary_operator(
@@ -89,7 +102,7 @@ impl TokenStream {
     }
 
     pub fn consume(&mut self, kind: TokenKind) -> Result<Token, ParserError> {
-        if let Some(token) = self.matches(&[kind]) {
+        if let Some(token) = self.only_take(&[kind]) {
             Ok(token)
         } else if let Some(token) = self.peek() {
             Err(ParserError::ExpectedToken {
@@ -102,5 +115,9 @@ impl TokenStream {
                 location: GeneralLocation::EndOfFile,
             })
         }
+    }
+
+    pub fn at_end(&self) -> bool {
+        self.tokens.is_empty()
     }
 }
