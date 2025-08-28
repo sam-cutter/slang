@@ -68,7 +68,7 @@ impl Parser {
         Self { tokens }
     }
 
-    pub fn parse(mut self) -> Result<Statement, Vec<ParserError>> {
+    pub fn parse(mut self) -> Result<Vec<Statement>, Vec<ParserError>> {
         let mut statements: Vec<Statement> = Vec::new();
         let mut errors: Vec<ParserError> = Vec::new();
 
@@ -83,7 +83,7 @@ impl Parser {
         }
 
         if errors.is_empty() {
-            Ok(Statement::Block { statements })
+            Ok(statements)
         } else {
             Err(errors)
         }

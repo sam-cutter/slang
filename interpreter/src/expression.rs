@@ -1,8 +1,10 @@
 //! Expressions within the slang programming language.
 
 use std::{
+    cell::RefCell,
     error::Error,
     fmt::{Debug, Display},
+    rc::Rc,
 };
 
 use crate::{
@@ -35,7 +37,7 @@ pub enum EvaluationError {
         identifier: String,
     },
     /// When there is an attempt to get the value of a variable which has not been initialised.
-    UninitialisedVariable {
+    UninitialisedTarget {
         identifier: String,
     },
     /// When the value of the condition for a control flow statement does not have the type of Boolean.
@@ -58,11 +60,11 @@ impl From<EnvironmentError> for EvaluationError {
             EnvironmentError::UndefinedAssignmentTarget { identifier } => {
                 Self::UndefinedIdentifier { identifier }
             }
-            EnvironmentError::UndefinedVariable { identifier } => {
+            EnvironmentError::UndefinedTarget { identifier } => {
                 Self::UndefinedIdentifier { identifier }
             }
-            EnvironmentError::UninitialisedVariable { identifier } => {
-                Self::UninitialisedVariable { identifier }
+            EnvironmentError::UninitialisedTarget { identifier } => {
+                Self::UninitialisedTarget { identifier }
             }
         }
     }
@@ -104,8 +106,8 @@ impl Display for EvaluationError {
             Self::UndefinedIdentifier { identifier } => {
                 write!(f, "The identifier `{}` is not defined.", identifier)
             }
-            Self::UninitialisedVariable { identifier } => {
-                write!(f, "The variable `{}` has not been initialised.", identifier)
+            Self::UninitialisedTarget { identifier } => {
+                write!(f, "The target `{}` has not been initialised.", identifier)
             }
             Self::NonBooleanControlFlowCondition {
                 condition,
@@ -183,7 +185,7 @@ pub enum Expression {
 
 impl Expression {
     /// Evaluates the expression.
-    pub fn evaluate(self, environment: &mut Environment) -> Result<Value, EvaluationError> {
+    pub fn evaluate(self, environment: Rc<RefCell<Environment>>) -> Result<Value, EvaluationError> {
         match self {
             Self::Ternary {
                 condition,
@@ -207,9 +209,9 @@ impl Expression {
             } => Expression::evaluate_call(environment, function, arguments),
 
             Self::Assignment { identifier, value } => {
-                let value = value.evaluate(environment)?;
+                let value = value.evaluate(Rc::clone(&environment))?;
 
-                environment.assign(identifier, value.clone())?;
+                environment.borrow_mut().assign(identifier, value.clone())?;
 
                 Ok(value)
             }
@@ -218,24 +220,24 @@ impl Expression {
 
             Self::Literal { value } => Ok(value),
 
-            Self::Variable { identifier } => Ok(environment.get(&identifier)?),
+            Self::Variable { identifier } => Ok(environment.borrow().get(&identifier)?),
         }
     }
 
     /// Evaluates a ternary expression.
     fn evaluate_ternary(
-        environment: &mut Environment,
+        environment: Rc<RefCell<Environment>>,
         condition: Box<Expression>,
         left: Box<Expression>,
         right: Box<Expression>,
     ) -> Result<Value, EvaluationError> {
-        let condition = condition.evaluate(environment)?;
+        let condition = condition.evaluate(Rc::clone(&environment))?;
 
         if let Value::Boolean(condition) = condition {
             if condition {
-                return left.evaluate(environment);
+                return left.evaluate(Rc::clone(&environment));
             } else {
-                return right.evaluate(environment);
+                return right.evaluate(Rc::clone(&environment));
             }
         } else {
             return Err(EvaluationError::NonBooleanTernaryCondition {
@@ -246,14 +248,17 @@ impl Expression {
 
     /// Evaluates a binary expression.
     fn evaluate_binary(
-        environment: &mut Environment,
+        environment: Rc<RefCell<Environment>>,
         left: Box<Expression>,
         operator: BinaryOperator,
         right: Box<Expression>,
     ) -> Result<Value, EvaluationError> {
         Ok(match operator {
             BinaryOperator::Add => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::String(left), Value::String(right)) => {
                         let mut new = left;
                         new.push_str(&right);
@@ -270,7 +275,10 @@ impl Expression {
             }
 
             BinaryOperator::Subtract => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
                     (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -282,7 +290,10 @@ impl Expression {
             }
 
             BinaryOperator::Multiply => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
                     (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -294,7 +305,10 @@ impl Expression {
             }
 
             BinaryOperator::Divide => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => {
                         if right == 0 {
                             return Err(EvaluationError::DivisionByZero);
@@ -318,7 +332,10 @@ impl Expression {
             }
 
             BinaryOperator::EqualTo => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
@@ -332,7 +349,10 @@ impl Expression {
             }
 
             BinaryOperator::NotEqualTo => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
@@ -347,7 +367,10 @@ impl Expression {
             }
 
             BinaryOperator::GreaterThan => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -359,7 +382,10 @@ impl Expression {
             }
 
             BinaryOperator::GreaterThanOrEqualTo => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left >= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left >= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -371,7 +397,10 @@ impl Expression {
             }
 
             BinaryOperator::LessThan => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -383,7 +412,10 @@ impl Expression {
             }
 
             BinaryOperator::LessThanOrEqualTo => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left <= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left <= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -394,10 +426,10 @@ impl Expression {
                 }
             }
 
-            BinaryOperator::AND => match left.evaluate(environment)? {
+            BinaryOperator::AND => match left.evaluate(Rc::clone(&environment))? {
                 Value::Boolean(left) => {
                     if left {
-                        match right.evaluate(environment)? {
+                        match right.evaluate(Rc::clone(&environment))? {
                             Value::Boolean(right) => Value::Boolean(left && right),
                             right => Err(EvaluationError::InvalidBinaryTypes {
                                 left: Type::Boolean,
@@ -416,12 +448,12 @@ impl Expression {
                 })?,
             },
 
-            BinaryOperator::OR => match left.evaluate(environment)? {
+            BinaryOperator::OR => match left.evaluate(Rc::clone(&environment))? {
                 Value::Boolean(left) => {
                     if left {
                         Value::Boolean(true)
                     } else {
-                        match right.evaluate(environment)? {
+                        match right.evaluate(Rc::clone(&environment))? {
                             Value::Boolean(right) => Value::Boolean(left || right),
                             right => Err(EvaluationError::InvalidBinaryTypes {
                                 left: Type::Boolean,
@@ -439,7 +471,10 @@ impl Expression {
             },
 
             BinaryOperator::BitwiseAND => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
                     (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -451,7 +486,10 @@ impl Expression {
             }
 
             BinaryOperator::BitwiseOR => {
-                match (left.evaluate(environment)?, right.evaluate(environment)?) {
+                match (
+                    left.evaluate(Rc::clone(&environment))?,
+                    right.evaluate(Rc::clone(&environment))?,
+                ) {
                     (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
                     (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -466,7 +504,7 @@ impl Expression {
 
     /// Evaluates a unary expression.
     fn evaluate_unary(
-        environment: &mut Environment,
+        environment: Rc<RefCell<Environment>>,
         operator: UnaryOperator,
         operand: Box<Expression>,
     ) -> Result<Value, EvaluationError> {
@@ -494,13 +532,14 @@ impl Expression {
 
     /// Evaluates a function call.
     fn evaluate_call(
-        environment: &mut Environment,
+        environment: Rc<RefCell<Environment>>,
         function: Box<Expression>,
         arguments: Vec<Box<Expression>>,
     ) -> Result<Value, EvaluationError> {
-        match function.evaluate(environment)? {
+        match function.evaluate(Rc::clone(&environment))? {
             Value::Function { parameters, block } => {
-                let mut call_environment = Environment::new();
+                let mut call_scope =
+                    Environment::new(Some(environment.borrow().global(Rc::clone(&environment))));
 
                 if parameters.len() != arguments.len() {
                     return Err(EvaluationError::IncorrectArgumentCount {
@@ -510,12 +549,12 @@ impl Expression {
                 }
 
                 for (parameter, argument) in parameters.into_iter().zip(arguments) {
-                    let argument = argument.evaluate(environment)?;
+                    let argument = argument.evaluate(Rc::clone(&environment))?;
 
-                    call_environment.define(parameter, Some(argument));
+                    call_scope.define(parameter, Some(argument));
                 }
 
-                block.execute(&mut call_environment)?;
+                block.execute(Rc::new(RefCell::new(call_scope)))?;
 
                 // TODO: return any value which was returned from the function
                 Ok(Value::Integer(0))

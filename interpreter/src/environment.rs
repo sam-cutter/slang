@@ -1,94 +1,87 @@
 //! Environments and scopes for the slang programming language.
 
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::value::Value;
 
 /// All errors which can occur while accessing the environment.
 pub enum EnvironmentError {
-    /// When there is an attempt to mutate a variable which has not been defined.
+    /// When there is an attempt to assign a value to a target which has not been defined.
     UndefinedAssignmentTarget { identifier: String },
-    /// When there is an attempt to get the value of a variable which has not been initialised.
-    UninitialisedVariable { identifier: String },
-    /// When there is an attempt to get the value of a variable which has not been defined.
-    UndefinedVariable { identifier: String },
+    /// When there is an attempt to get the value of a target which has not been initialised.
+    UninitialisedTarget { identifier: String },
+    /// When there is an attempt to get the value of a target which has not been defined.
+    UndefinedTarget { identifier: String },
 }
 
 /// An [Environment] represents a set of scopes, stacked on top of one another.
 ///
 /// Note that this is not the same thing as the stack: the stack has a frame for each subroutine call, whereas the environment has a new scope for each block scope (e.g. if-statements, while-loops).
 pub struct Environment {
-    /// The contained scopes.
-    scopes: Vec<HashMap<String, Option<Value>>>,
+    /// The parent scope.
+    parent: Option<Rc<RefCell<Environment>>>,
+    /// The current scope.
+    scope: HashMap<String, Option<Value>>,
 }
 
 impl Environment {
-    /// Creates a new [Environment], with one scope already put in place.
-    pub fn new() -> Self {
+    /// Creates a new [Environment].
+    pub fn new(parent: Option<Rc<RefCell<Environment>>>) -> Self {
         Self {
-            scopes: vec![HashMap::new()],
+            scope: HashMap::new(),
+            parent,
         }
     }
 
-    /// Defines a new variable and inserts it into the innermost scope.
+    /// Defines a new target and inserts it into the innermost scope.
     pub fn define(&mut self, identifier: String, value: Option<Value>) {
-        if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(identifier, value);
-        } else {
-            let mut scope = HashMap::new();
-
-            scope.insert(identifier, value);
-
-            self.scopes.push(scope);
-        }
+        self.scope.insert(identifier, value);
     }
 
-    /// Mutates the value of a variable.
+    /// Assigns a value to an initialised target.
     ///
-    /// In order to find the variable to mutate, the program starts in the innermost scope and works outwards until the variable is found (or is not found anywhere).
+    /// In order to find the target to mutate, the program starts in the innermost scope and works outwards until the target is found (or is not found anywhere).
     pub fn assign(&mut self, identifier: String, value: Value) -> Result<(), EnvironmentError> {
-        if self.scopes.is_empty() {
-            return Err(EnvironmentError::UndefinedAssignmentTarget { identifier });
-        }
+        if let Some(target) = self.scope.get_mut(&identifier) {
+            *target = Some(value);
 
-        for scope in self.scopes.iter_mut().rev() {
-            if scope.contains_key(&identifier) {
-                scope.insert(identifier, Some(value));
-                return Ok(());
-            }
+            Ok(())
+        } else if let Some(parent) = &self.parent {
+            parent.borrow_mut().assign(identifier, value)
+        } else {
+            Err(EnvironmentError::UndefinedAssignmentTarget { identifier })
         }
-
-        Err(EnvironmentError::UndefinedAssignmentTarget { identifier })
     }
 
-    /// Gets the value of a variable.
+    /// Gets the value of a target.
     ///
-    /// In order to find the variable, the program starts in the innermost scope and works outwards until the variable is found (or is not found anywhere).
+    /// In order to find the target, the program starts in the innermost scope and works outwards until the target is found (or is not found anywhere).
     pub fn get(&self, identifier: &str) -> Result<Value, EnvironmentError> {
-        for scope in self.scopes.iter().rev() {
-            match scope.get(identifier) {
-                Some(Some(value)) => return Ok(value.clone()),
-                Some(None) => {
-                    return Err(EnvironmentError::UninitialisedVariable {
+        match self.scope.get(identifier) {
+            Some(Some(value)) => Ok(value.clone()),
+            Some(None) => Err(EnvironmentError::UninitialisedTarget {
+                identifier: identifier.to_string(),
+            }),
+            None => {
+                if let Some(parent) = &self.parent {
+                    parent.borrow().get(identifier)
+                } else {
+                    Err(EnvironmentError::UndefinedTarget {
                         identifier: identifier.to_string(),
-                    });
+                    })
                 }
-                None => continue,
             }
         }
-
-        Err(EnvironmentError::UndefinedVariable {
-            identifier: identifier.to_string(),
-        })
     }
 
-    /// Pushes a new scope.
-    pub fn enter_scope(&mut self) {
-        self.scopes.push(HashMap::new());
-    }
-
-    /// Pops the current scope.
-    pub fn exit_scope(&mut self) {
-        self.scopes.pop();
+    /// Gets the outermost scope.
+    ///
+    /// Accepts an Rc<RefCell> to itself.
+    pub fn global(&self, self_reference: Rc<RefCell<Environment>>) -> Rc<RefCell<Environment>> {
+        if let Some(parent) = &self.parent {
+            parent.borrow().global(Rc::clone(parent))
+        } else {
+            self_reference
+        }
     }
 }

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::{
     environment::Environment,
@@ -52,7 +52,7 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn execute(self, environment: &mut Environment) -> Result<(), EvaluationError> {
+    pub fn execute(self, environment: Rc<RefCell<Environment>>) -> Result<(), EvaluationError> {
         match self {
             Self::Print(expression) => Ok(println!("{}", expression.evaluate(environment)?)),
             Self::VariableDeclaration {
@@ -60,30 +60,32 @@ impl Statement {
                 initialiser,
             } => {
                 let initialiser = match initialiser {
-                    Some(initialiser) => Some(initialiser.evaluate(environment)?),
+                    Some(initialiser) => Some(initialiser.evaluate(Rc::clone(&environment))?),
                     None => None,
                 };
 
-                Ok(environment.define(identifier, initialiser))
+                Ok(environment.borrow_mut().define(identifier, initialiser))
             }
             Self::FunctionDefinition {
                 identifier,
                 parameters,
                 block,
-            } => Ok(environment.define(identifier, Some(Value::Function { parameters, block }))),
+            } => Ok(environment
+                .borrow_mut()
+                .define(identifier, Some(Value::Function { parameters, block }))),
             Self::IfStatement {
                 condition,
                 execute_if_true,
                 execute_if_false,
             } => {
-                let condition = condition.evaluate(environment)?;
+                let condition = condition.evaluate(Rc::clone(&environment))?;
 
                 if let Value::Boolean(condition) = condition {
                     if condition {
-                        execute_if_true.execute(environment)
+                        execute_if_true.execute(Rc::clone(&environment))
                     } else {
                         match execute_if_false {
-                            Some(if_false) => if_false.execute(environment),
+                            Some(if_false) => if_false.execute(Rc::clone(&environment)),
                             None => Ok(()),
                         }
                     }
@@ -95,18 +97,18 @@ impl Statement {
                 }
             }
             Self::WhileLoop { condition, block } => Ok({
-                while match condition.clone().evaluate(environment)? {
+                while match condition.clone().evaluate(Rc::clone(&environment))? {
                     Value::Boolean(condition) => condition,
                     condition => Err(EvaluationError::NonBooleanControlFlowCondition {
                         condition: condition.slang_type(),
                         control_flow: ControlFlow::While,
                     })?,
                 } {
-                    block.clone().execute(environment)?;
+                    block.clone().execute(Rc::clone(&environment))?;
                 }
             }),
             Self::Block { statements } => {
-                environment.enter_scope();
+                let block_scope = Rc::new(RefCell::new(Environment::new(Some(environment))));
 
                 let mut non_definitions = Vec::new();
 
@@ -116,16 +118,14 @@ impl Statement {
                             identifier: _,
                             parameters: _,
                             block: _,
-                        } => statement.execute(environment)?,
+                        } => statement.execute(Rc::clone(&block_scope))?,
                         _ => non_definitions.push(statement),
                     }
                 }
 
                 for statement in non_definitions {
-                    statement.execute(environment)?;
+                    statement.execute(Rc::clone(&block_scope))?;
                 }
-
-                environment.exit_scope();
 
                 Ok(())
             }

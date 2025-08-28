@@ -1,12 +1,15 @@
 use std::{
+    cell::RefCell,
     env, fs,
     io::{self, BufRead, Write},
+    rc::Rc,
 };
 
 use environment::Environment;
 use lexer::Lexer;
 use parser::Parser;
 use source::Source;
+use statement::Statement;
 use token_stream::TokenStream;
 
 mod environment;
@@ -35,7 +38,7 @@ fn run_prompt() {
     let mut stdin = io::stdin().lock();
     let mut stdout = io::stdout().lock();
 
-    let mut environment = Environment::new();
+    let environment = Rc::new(RefCell::new(Environment::new(None)));
 
     loop {
         line.clear();
@@ -44,22 +47,22 @@ fn run_prompt() {
         let _ = stdout.flush();
         let _ = stdin.read_line(&mut line);
 
-        run(line.trim(), &mut environment);
+        run(line.trim(), Rc::clone(&environment));
     }
 }
 
 fn run_file(filename: &str) {
     let contents = fs::read_to_string(filename);
 
-    let mut environment = Environment::new();
+    let environment = Rc::new(RefCell::new(Environment::new(None)));
 
     match contents {
-        Ok(source) => run(&source, &mut environment),
+        Ok(source) => run(&source, environment),
         Err(error) => eprintln!("{}", error),
     }
 }
 
-fn run(source: &str, environment: &mut Environment) {
+fn run(source: &str, environment: Rc<RefCell<Environment>>) {
     let source = Source::new(source);
 
     let lexer = Lexer::new(source);
@@ -80,8 +83,29 @@ fn run(source: &str, environment: &mut Environment) {
 
     match parser.parse() {
         Ok(statements) => {
-            if let Err(error) = statements.execute(environment) {
-                eprintln!("{}", error);
+            let mut non_definitions = Vec::new();
+
+            for statement in statements {
+                match statement {
+                    Statement::FunctionDefinition {
+                        identifier: _,
+                        parameters: _,
+                        block: _,
+                    } => {
+                        if let Err(error) = statement.execute(Rc::clone(&environment)) {
+                            eprintln!("{}", error);
+                            return;
+                        }
+                    }
+                    _ => non_definitions.push(statement),
+                }
+            }
+
+            for statement in non_definitions {
+                if let Err(error) = statement.execute(Rc::clone(&environment)) {
+                    eprintln!("{}", error);
+                    return;
+                }
             }
         }
         Err(errors) => {
