@@ -52,6 +52,7 @@ pub enum EvaluationError {
         expected: usize,
         passed: usize,
     },
+    AttemptToUseNothing,
 }
 
 impl From<EnvironmentError> for EvaluationError {
@@ -133,6 +134,10 @@ impl Display for EvaluationError {
                     expected, passed
                 )
             }
+            Self::AttemptToUseNothing => write!(
+                f,
+                "Attempted to use the return value from a function, however the function returned nothing."
+            ),
         }
     }
 }
@@ -184,8 +189,22 @@ pub enum Expression {
 }
 
 impl Expression {
+    /// Evaluates an expression, returning an error if it is nothing.
+    pub fn evaluate_not_nothing(
+        self,
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<Value, EvaluationError> {
+        self.evaluate(environment).map(|value| match value {
+            Some(value) => Ok(value),
+            None => Err(EvaluationError::AttemptToUseNothing),
+        })?
+    }
+
     /// Evaluates the expression.
-    pub fn evaluate(self, environment: Rc<RefCell<Environment>>) -> Result<Value, EvaluationError> {
+    pub fn evaluate(
+        self,
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<Option<Value>, EvaluationError> {
         match self {
             Self::Ternary {
                 condition,
@@ -218,9 +237,9 @@ impl Expression {
 
             Self::Grouping { contained } => contained.evaluate(environment),
 
-            Self::Literal { value } => Ok(value),
+            Self::Literal { value } => Ok(Some(value)),
 
-            Self::Variable { identifier } => Ok(environment.borrow().get(&identifier)?),
+            Self::Variable { identifier } => Ok(Some(environment.borrow().get(&identifier)?)),
         }
     }
 
@@ -230,8 +249,8 @@ impl Expression {
         condition: Box<Expression>,
         left: Box<Expression>,
         right: Box<Expression>,
-    ) -> Result<Value, EvaluationError> {
-        let condition = condition.evaluate(Rc::clone(&environment))?;
+    ) -> Result<Option<Value>, EvaluationError> {
+        let condition = condition.evaluate_not_nothing(Rc::clone(&environment))?;
 
         if let Value::Boolean(condition) = condition {
             if condition {
@@ -252,140 +271,102 @@ impl Expression {
         left: Box<Expression>,
         operator: BinaryOperator,
         right: Box<Expression>,
-    ) -> Result<Value, EvaluationError> {
-        Ok(match operator {
-            BinaryOperator::Add => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::String(left), Value::String(right)) => {
-                        let mut new = left;
-                        new.push_str(&right);
-                        Value::String(new)
+    ) -> Result<Option<Value>, EvaluationError> {
+        Ok(Some(match operator {
+            BinaryOperator::Add => match Self::binary_operands(left, right, environment)? {
+                (Value::String(left), Value::String(right)) => {
+                    let mut new = left;
+                    new.push_str(&right);
+                    Value::String(new)
+                }
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left + right),
+                (Value::Float(left), Value::Float(right)) => Value::Float(left + right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
+
+            BinaryOperator::Subtract => match Self::binary_operands(left, right, environment)? {
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
+                (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
+
+            BinaryOperator::Multiply => match Self::binary_operands(left, right, environment)? {
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
+                (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
+
+            BinaryOperator::Divide => match Self::binary_operands(left, right, environment)? {
+                (Value::Integer(left), Value::Integer(right)) => {
+                    if right == 0 {
+                        return Err(EvaluationError::DivisionByZero);
                     }
-                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left + right),
-                    (Value::Float(left), Value::Float(right)) => Value::Float(left + right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
+
+                    Value::Integer(left / right)
                 }
-            }
-
-            BinaryOperator::Subtract => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
-                    (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
-
-            BinaryOperator::Multiply => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
-                    (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
-
-            BinaryOperator::Divide => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::Integer(left), Value::Integer(right)) => {
-                        if right == 0 {
-                            return Err(EvaluationError::DivisionByZero);
-                        }
-
-                        Value::Integer(left / right)
+                (Value::Float(left), Value::Float(right)) => {
+                    if right == 0.0 {
+                        return Err(EvaluationError::DivisionByZero);
                     }
-                    (Value::Float(left), Value::Float(right)) => {
-                        if right == 0.0 {
-                            return Err(EvaluationError::DivisionByZero);
-                        }
 
-                        Value::Float(left / right)
-                    }
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
+                    Value::Float(left / right)
                 }
-            }
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
 
-            BinaryOperator::EqualTo => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
-                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
-                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
-                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left == right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
+            BinaryOperator::EqualTo => match Self::binary_operands(left, right, environment)? {
+                (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left == right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
 
-            BinaryOperator::NotEqualTo => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
-                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
-                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
+            BinaryOperator::NotEqualTo => match Self::binary_operands(left, right, environment)? {
+                (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
 
-                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
 
-            BinaryOperator::GreaterThan => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
-                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
+            BinaryOperator::GreaterThan => match Self::binary_operands(left, right, environment)? {
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
 
             BinaryOperator::GreaterThanOrEqualTo => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
+                match Self::binary_operands(left, right, environment)? {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left >= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left >= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -396,26 +377,18 @@ impl Expression {
                 }
             }
 
-            BinaryOperator::LessThan => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
-                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
+            BinaryOperator::LessThan => match Self::binary_operands(left, right, environment)? {
+                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
+                (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
 
             BinaryOperator::LessThanOrEqualTo => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
+                match Self::binary_operands(left, right, environment)? {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left <= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left <= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -426,10 +399,10 @@ impl Expression {
                 }
             }
 
-            BinaryOperator::AND => match left.evaluate(Rc::clone(&environment))? {
+            BinaryOperator::AND => match left.evaluate_not_nothing(Rc::clone(&environment))? {
                 Value::Boolean(left) => {
                     if left {
-                        match right.evaluate(Rc::clone(&environment))? {
+                        match right.evaluate_not_nothing(Rc::clone(&environment))? {
                             Value::Boolean(right) => Value::Boolean(left && right),
                             right => Err(EvaluationError::InvalidBinaryTypes {
                                 left: Type::Boolean,
@@ -448,12 +421,12 @@ impl Expression {
                 })?,
             },
 
-            BinaryOperator::OR => match left.evaluate(Rc::clone(&environment))? {
+            BinaryOperator::OR => match left.evaluate_not_nothing(Rc::clone(&environment))? {
                 Value::Boolean(left) => {
                     if left {
                         Value::Boolean(true)
                     } else {
-                        match right.evaluate(Rc::clone(&environment))? {
+                        match right.evaluate_not_nothing(Rc::clone(&environment))? {
                             Value::Boolean(right) => Value::Boolean(left || right),
                             right => Err(EvaluationError::InvalidBinaryTypes {
                                 left: Type::Boolean,
@@ -470,36 +443,26 @@ impl Expression {
                 })?,
             },
 
-            BinaryOperator::BitwiseAND => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
-                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
+            BinaryOperator::BitwiseAND => match Self::binary_operands(left, right, environment)? {
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
 
-            BinaryOperator::BitwiseOR => {
-                match (
-                    left.evaluate(Rc::clone(&environment))?,
-                    right.evaluate(Rc::clone(&environment))?,
-                ) {
-                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
-                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
-                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                        left: left.slang_type(),
-                        operator,
-                        right: Some(right.slang_type()),
-                    })?,
-                }
-            }
-        })
+            BinaryOperator::BitwiseOR => match Self::binary_operands(left, right, environment)? {
+                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
+                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator,
+                    right: Some(right.slang_type()),
+                })?,
+            },
+        }))
     }
 
     /// Evaluates a unary expression.
@@ -507,10 +470,10 @@ impl Expression {
         environment: Rc<RefCell<Environment>>,
         operator: UnaryOperator,
         operand: Box<Expression>,
-    ) -> Result<Value, EvaluationError> {
-        let operand = operand.evaluate(environment)?;
+    ) -> Result<Option<Value>, EvaluationError> {
+        let operand = operand.evaluate_not_nothing(Rc::clone(&environment))?;
 
-        Ok(match operator {
+        Ok(Some(match operator {
             UnaryOperator::Minus => match operand {
                 Value::Integer(operand) => Value::Integer(-operand),
                 Value::Float(operand) => Value::Float(-operand),
@@ -527,7 +490,7 @@ impl Expression {
                     operand: operand.slang_type(),
                 })?,
             },
-        })
+        }))
     }
 
     /// Evaluates a function call.
@@ -535,8 +498,8 @@ impl Expression {
         environment: Rc<RefCell<Environment>>,
         function: Box<Expression>,
         arguments: Vec<Box<Expression>>,
-    ) -> Result<Value, EvaluationError> {
-        match function.evaluate(Rc::clone(&environment))? {
+    ) -> Result<Option<Value>, EvaluationError> {
+        match function.evaluate_not_nothing(Rc::clone(&environment))? {
             Value::Function { parameters, block } => {
                 let mut call_scope =
                     Environment::new(Some(environment.borrow().global(Rc::clone(&environment))));
@@ -551,18 +514,27 @@ impl Expression {
                 for (parameter, argument) in parameters.into_iter().zip(arguments) {
                     let argument = argument.evaluate(Rc::clone(&environment))?;
 
-                    call_scope.define(parameter, Some(argument));
+                    call_scope.define(parameter, argument);
                 }
 
-                block.execute(Rc::new(RefCell::new(call_scope)))?;
-
-                // TODO: return any value which was returned from the function
-                Ok(Value::Integer(0))
+                block.execute(Rc::new(RefCell::new(call_scope)))
             }
             other => Err(EvaluationError::AttemptedCallOfNonFunction {
                 attempt: other.slang_type(),
             }),
         }
+    }
+
+    /// Evaluates a set of binary operands, ensuring that they are not nothing.
+    fn binary_operands(
+        left: Box<Expression>,
+        right: Box<Expression>,
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<(Value, Value), EvaluationError> {
+        Ok((
+            left.evaluate_not_nothing(Rc::clone(&environment))?,
+            right.evaluate_not_nothing(Rc::clone(&environment))?,
+        ))
     }
 }
 

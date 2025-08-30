@@ -41,9 +41,13 @@ impl Environment {
     /// Assigns a value to an initialised target.
     ///
     /// In order to find the target to mutate, the program starts in the innermost scope and works outwards until the target is found (or is not found anywhere).
-    pub fn assign(&mut self, identifier: String, value: Value) -> Result<(), EnvironmentError> {
+    pub fn assign(
+        &mut self,
+        identifier: String,
+        value: Option<Value>,
+    ) -> Result<(), EnvironmentError> {
         if let Some(target) = self.scope.get_mut(&identifier) {
-            *target = Some(value);
+            *target = value;
 
             Ok(())
         } else if let Some(parent) = &self.parent {

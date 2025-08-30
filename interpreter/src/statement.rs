@@ -41,6 +41,7 @@ pub enum Statement {
         parameters: Vec<String>,
         block: Box<Statement>,
     },
+    Return(Option<Expression>),
     WhileLoop {
         condition: Expression,
         block: Box<Statement>,
@@ -52,33 +53,47 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn execute(self, environment: Rc<RefCell<Environment>>) -> Result<(), EvaluationError> {
+    pub fn execute(
+        self,
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<Option<Value>, EvaluationError> {
         match self {
-            Self::Print(expression) => Ok(println!("{}", expression.evaluate(environment)?)),
+            Self::Print(expression) => {
+                println!(
+                    "{}",
+                    expression.evaluate_not_nothing(Rc::clone(&environment))?
+                );
+                Ok(None)
+            }
             Self::VariableDeclaration {
                 identifier,
                 initialiser,
             } => {
                 let initialiser = match initialiser {
-                    Some(initialiser) => Some(initialiser.evaluate(Rc::clone(&environment))?),
+                    Some(initialiser) => {
+                        Some(initialiser.evaluate_not_nothing(Rc::clone(&environment))?)
+                    }
                     None => None,
                 };
-
-                Ok(environment.borrow_mut().define(identifier, initialiser))
+                environment.borrow_mut().define(identifier, initialiser);
+                Ok(None)
             }
             Self::FunctionDefinition {
                 identifier,
                 parameters,
                 block,
-            } => Ok(environment
-                .borrow_mut()
-                .define(identifier, Some(Value::Function { parameters, block }))),
+            } => {
+                environment
+                    .borrow_mut()
+                    .define(identifier, Some(Value::Function { parameters, block }));
+                Ok(None)
+            }
             Self::IfStatement {
                 condition,
                 execute_if_true,
                 execute_if_false,
             } => {
-                let condition = condition.evaluate(Rc::clone(&environment))?;
+                let condition = condition.evaluate_not_nothing(Rc::clone(&environment))?;
 
                 if let Value::Boolean(condition) = condition {
                     if condition {
@@ -86,7 +101,7 @@ impl Statement {
                     } else {
                         match execute_if_false {
                             Some(if_false) => if_false.execute(Rc::clone(&environment)),
-                            None => Ok(()),
+                            None => Ok(None),
                         }
                     }
                 } else {
@@ -96,8 +111,11 @@ impl Statement {
                     })
                 }
             }
-            Self::WhileLoop { condition, block } => Ok({
-                while match condition.clone().evaluate(Rc::clone(&environment))? {
+            Self::WhileLoop { condition, block } => {
+                while match condition
+                    .clone()
+                    .evaluate_not_nothing(Rc::clone(&environment))?
+                {
                     Value::Boolean(condition) => condition,
                     condition => Err(EvaluationError::NonBooleanControlFlowCondition {
                         condition: condition.slang_type(),
@@ -106,7 +124,9 @@ impl Statement {
                 } {
                     block.clone().execute(Rc::clone(&environment))?;
                 }
-            }),
+
+                Ok(None)
+            }
             Self::Block { statements } => {
                 let block_scope = Rc::new(RefCell::new(Environment::new(Some(environment))));
 
@@ -118,20 +138,31 @@ impl Statement {
                             identifier: _,
                             parameters: _,
                             block: _,
-                        } => statement.execute(Rc::clone(&block_scope))?,
+                        } => {
+                            statement.execute(Rc::clone(&block_scope))?;
+                        }
                         _ => non_definitions.push(statement),
                     }
                 }
 
                 for statement in non_definitions {
+                    if let Statement::Return(_) = statement {
+                        // TODO: need to emit some sort of return signal upwards
+                        return statement.execute(Rc::clone(&block_scope));
+                    }
+
                     statement.execute(Rc::clone(&block_scope))?;
                 }
 
-                Ok(())
+                Ok(None)
             }
             Self::Expression(expression) => match expression.evaluate(environment) {
-                Ok(_) => Ok(()),
+                Ok(_) => Ok(None),
                 Err(error) => Err(error),
+            },
+            Self::Return(expression) => match expression {
+                Some(expression) => expression.evaluate(Rc::clone(&environment)),
+                None => Ok(None),
             },
         }
     }

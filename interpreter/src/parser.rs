@@ -117,6 +117,7 @@ impl Parser {
             Some(TokenKind::Print) => self.print_statement(),
             Some(TokenKind::Let) => self.variable_declaration(),
             Some(TokenKind::Fu) => self.function_definition(),
+            Some(TokenKind::Return) => self.return_statement(),
             Some(TokenKind::If) => self.if_statement(),
             Some(TokenKind::While) => self.while_loop(),
             Some(TokenKind::LeftBrace) => self.block(),
@@ -179,6 +180,18 @@ impl Parser {
             parameters,
             block,
         })
+    }
+
+    fn return_statement(&mut self) -> Result<Statement, ParserError> {
+        self.tokens.consume(TokenKind::Return)?;
+
+        if self.tokens.matches(&[TokenKind::Semicolon]) {
+            Ok(Statement::Return(None))
+        } else {
+            let expression = self.expression()?;
+            self.tokens.consume(TokenKind::Semicolon)?;
+            Ok(Statement::Return(Some(expression)))
+        }
     }
 
     fn if_statement(&mut self) -> Result<Statement, ParserError> {
