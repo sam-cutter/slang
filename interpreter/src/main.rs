@@ -12,6 +12,8 @@ use source::Source;
 use statement::Statement;
 use token_stream::TokenStream;
 
+use crate::statement::ControlFlow;
+
 mod environment;
 mod expression;
 mod lexer;
@@ -102,9 +104,15 @@ fn run(source: &str, environment: Rc<RefCell<Environment>>) {
             }
 
             for statement in non_definitions {
-                if let Err(error) = statement.execute(Rc::clone(&environment)) {
-                    eprintln!("{}", error);
-                    return;
+                match statement.execute(Rc::clone(&environment)) {
+                    Ok(control) => match control {
+                        ControlFlow::Continue => continue,
+                        ControlFlow::Break(_) => return,
+                    },
+                    Err(error) => {
+                        eprintln!("{}", error);
+                        return;
+                    }
                 }
             }
         }
