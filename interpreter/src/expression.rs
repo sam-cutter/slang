@@ -43,7 +43,7 @@ pub enum EvaluationError {
     /// When the value of the condition for a control flow statement does not have the type of Boolean.
     NonBooleanControlFlowCondition {
         condition: Type,
-        control_flow: ControlFlow,
+        control_flow: String,
     },
     AttemptedCallOfNonFunction {
         attempt: Type,
@@ -517,7 +517,12 @@ impl Expression {
                     call_scope.define(parameter, argument);
                 }
 
-                block.execute(Rc::new(RefCell::new(call_scope)))
+                block
+                    .execute(Rc::new(RefCell::new(call_scope)))
+                    .map(|control| match control {
+                        ControlFlow::Break(value) => value,
+                        ControlFlow::Continue => None,
+                    })
             }
             other => Err(EvaluationError::AttemptedCallOfNonFunction {
                 attempt: other.slang_type(),

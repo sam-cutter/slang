@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Display, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     environment::Environment,
@@ -7,21 +7,8 @@ use crate::{
 };
 
 pub enum ControlFlow {
-    If,
-    While,
-}
-
-impl Display for ControlFlow {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::If => "if-statement",
-                Self::While => "while-loop",
-            }
-        )
-    }
+    Continue,
+    Break(Option<Value>),
 }
 
 #[derive(Clone)]
@@ -56,14 +43,14 @@ impl Statement {
     pub fn execute(
         self,
         environment: Rc<RefCell<Environment>>,
-    ) -> Result<Option<Value>, EvaluationError> {
+    ) -> Result<ControlFlow, EvaluationError> {
         match self {
             Self::Print(expression) => {
                 println!(
                     "{}",
                     expression.evaluate_not_nothing(Rc::clone(&environment))?
                 );
-                Ok(None)
+                Ok(ControlFlow::Continue)
             }
             Self::VariableDeclaration {
                 identifier,
@@ -76,7 +63,7 @@ impl Statement {
                     None => None,
                 };
                 environment.borrow_mut().define(identifier, initialiser);
-                Ok(None)
+                Ok(ControlFlow::Continue)
             }
             Self::FunctionDefinition {
                 identifier,
@@ -86,7 +73,7 @@ impl Statement {
                 environment
                     .borrow_mut()
                     .define(identifier, Some(Value::Function { parameters, block }));
-                Ok(None)
+                Ok(ControlFlow::Continue)
             }
             Self::IfStatement {
                 condition,
@@ -101,13 +88,13 @@ impl Statement {
                     } else {
                         match execute_if_false {
                             Some(if_false) => if_false.execute(Rc::clone(&environment)),
-                            None => Ok(None),
+                            None => Ok(ControlFlow::Continue),
                         }
                     }
                 } else {
                     Err(EvaluationError::NonBooleanControlFlowCondition {
                         condition: condition.slang_type(),
-                        control_flow: ControlFlow::If,
+                        control_flow: "if-statement".to_string(),
                     })
                 }
             }
@@ -119,13 +106,16 @@ impl Statement {
                     Value::Boolean(condition) => condition,
                     condition => Err(EvaluationError::NonBooleanControlFlowCondition {
                         condition: condition.slang_type(),
-                        control_flow: ControlFlow::While,
+                        control_flow: "while-loop".to_string(),
                     })?,
                 } {
-                    block.clone().execute(Rc::clone(&environment))?;
+                    match block.clone().execute(Rc::clone(&environment))? {
+                        ControlFlow::Break(value) => return Ok(ControlFlow::Break(value)),
+                        ControlFlow::Continue => continue,
+                    }
                 }
 
-                Ok(None)
+                Ok(ControlFlow::Continue)
             }
             Self::Block { statements } => {
                 let block_scope = Rc::new(RefCell::new(Environment::new(Some(environment))));
@@ -146,23 +136,23 @@ impl Statement {
                 }
 
                 for statement in non_definitions {
-                    if let Statement::Return(_) = statement {
-                        // TODO: need to emit some sort of return signal upwards
-                        return statement.execute(Rc::clone(&block_scope));
+                    match statement.execute(Rc::clone(&block_scope))? {
+                        ControlFlow::Break(value) => return Ok(ControlFlow::Break(value)),
+                        ControlFlow::Continue => continue,
                     }
-
-                    statement.execute(Rc::clone(&block_scope))?;
                 }
 
-                Ok(None)
+                Ok(ControlFlow::Continue)
             }
             Self::Expression(expression) => match expression.evaluate(environment) {
-                Ok(_) => Ok(None),
+                Ok(_) => Ok(ControlFlow::Continue),
                 Err(error) => Err(error),
             },
             Self::Return(expression) => match expression {
-                Some(expression) => expression.evaluate(Rc::clone(&environment)),
-                None => Ok(None),
+                Some(expression) => Ok(ControlFlow::Break(
+                    expression.evaluate(Rc::clone(&environment))?,
+                )),
+                None => Ok(ControlFlow::Break(None)),
             },
         }
     }
