@@ -473,6 +473,7 @@ impl Parser {
             TokenKind::Integer,
             TokenKind::Boolean,
             TokenKind::Identifier,
+            TokenKind::LeftBrace,
         ];
 
         if let Some(token) = self.tokens.only_take(&expected) {
@@ -498,6 +499,32 @@ impl Parser {
 
                     TokenData::Identifier(identifier) => {
                         return Ok(Expression::Variable { identifier });
+                    }
+
+                    TokenData::LeftBrace => {
+                        let mut fields = Vec::new();
+
+                        if self
+                            .tokens
+                            .peek()
+                            .is_some_and(|token| token.kind() != TokenKind::RightBrace)
+                        {
+                            let identifier = self.tokens.consume_identifier()?;
+                            self.tokens.consume(TokenKind::Colon)?;
+                            let expression = self.expression()?;
+                            fields.push((identifier, expression));
+
+                            while self.tokens.matches(&[TokenKind::Comma]) {
+                                let identifier = self.tokens.consume_identifier()?;
+                                self.tokens.consume(TokenKind::Colon)?;
+                                let expression = self.expression()?;
+                                fields.push((identifier, expression));
+                            }
+                        }
+
+                        self.tokens.consume(TokenKind::RightBrace)?;
+
+                        Value::Object(fields)
                     }
 
                     _ => unreachable!(),

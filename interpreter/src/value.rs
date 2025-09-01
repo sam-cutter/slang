@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::statement::Statement;
+use crate::{expression::Expression, statement::Statement};
 
 #[derive(Clone)]
 pub enum NativeFunction {
@@ -24,6 +24,7 @@ pub enum Value {
     Integer(i32),
     Boolean(bool),
     Function(Function),
+    Object(Vec<(String, Expression)>),
 }
 
 impl Display for Value {
@@ -40,6 +41,17 @@ impl Display for Value {
                     block: _,
                 } => write!(f, "<function with {} named parameters>", parameters.len()),
             },
+            Self::Object(fields) => {
+                write!(
+                    f,
+                    "{{ {} }}",
+                    fields
+                        .iter()
+                        .map(|(identifier, _expression)| format!("{}", identifier))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                )
+            }
         }
     }
 }
@@ -52,6 +64,7 @@ impl Value {
             Self::Integer(_) => Type::Integer,
             Self::Boolean(_) => Type::Boolean,
             Self::Function(_) => Type::Function,
+            Self::Object(_) => Type::Object,
         }
     }
 }
@@ -63,6 +76,7 @@ pub enum Type {
     Integer,
     Boolean,
     Function,
+    Object,
 }
 
 impl Display for Type {
@@ -73,6 +87,7 @@ impl Display for Type {
             Self::Integer => write!(f, "Integer"),
             Self::Boolean => write!(f, "Boolean"),
             Self::Function => write!(f, "Function"),
+            Self::Object => write!(f, "Object"),
         }
     }
 }

@@ -57,5 +57,8 @@ primary -> "(" expression ")"
          | INTEGER
          | FLOAT
          | IDENTIFIER
+         | object
          | "true" | "false"
+
+object -> "{" (IDENTIFIER ":" expression ("," IDENTIFIER ":" expression)*)? "}"
 ```
