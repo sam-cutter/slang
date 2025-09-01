@@ -3,15 +3,27 @@ use std::fmt::Display;
 use crate::statement::Statement;
 
 #[derive(Clone)]
+pub enum NativeFunction {
+    Print,
+    Format,
+}
+
+#[derive(Clone)]
+pub enum Function {
+    UserDefined {
+        parameters: Vec<String>,
+        block: Box<Statement>,
+    },
+    Native(NativeFunction),
+}
+
+#[derive(Clone)]
 pub enum Value {
     String(String),
     Float(f64),
     Integer(i32),
     Boolean(bool),
-    Function {
-        parameters: Vec<String>,
-        block: Box<Statement>,
-    },
+    Function(Function),
 }
 
 impl Display for Value {
@@ -21,12 +33,13 @@ impl Display for Value {
             Self::Float(value) => write!(f, "{}", value),
             Self::Integer(value) => write!(f, "{}", value),
             Self::Boolean(value) => write!(f, "{}", value),
-            Self::Function {
-                parameters,
-                block: _,
-            } => {
-                write!(f, "<function with {} named parameters>", parameters.len())
-            }
+            Self::Function(function) => match function {
+                Function::Native(_) => write!(f, "<native function>"),
+                Function::UserDefined {
+                    parameters,
+                    block: _,
+                } => write!(f, "<function with {} named parameters>", parameters.len()),
+            },
         }
     }
 }
@@ -38,10 +51,7 @@ impl Value {
             Self::Float(_) => Type::Float,
             Self::Integer(_) => Type::Integer,
             Self::Boolean(_) => Type::Boolean,
-            Self::Function {
-                parameters: _,
-                block: _,
-            } => Type::Function,
+            Self::Function(_) => Type::Function,
         }
     }
 }

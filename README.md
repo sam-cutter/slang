@@ -7,8 +7,7 @@ This is the current grammar of slang.
 ```
 program -> statement*
 
-statement -> printStatement
-           | variableDeclaration
+statement -> variableDeclaration
            | functionDefinition
            | returnStatement
            | ifStatement
@@ -17,8 +16,6 @@ statement -> printStatement
            | expressionStatement
 
 expressionStatement -> expression ";"
-
-printStatement -> "print" expression ";"
 
 variableDeclaration -> "let" IDENTIFIER ("=" expression)? ";"
 

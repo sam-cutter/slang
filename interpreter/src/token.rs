@@ -125,9 +125,6 @@ pub enum TokenData {
     ///
     /// Must start with either an alphabetic character or an underscore, with all subsequent characters being alphanumeric or underscores.
     Identifier(String),
-
-    /// The `print` string.
-    Print,
 }
 
 impl TokenData {
@@ -180,8 +177,6 @@ impl TokenData {
             TokenData::Let => TokenKind::Let,
             TokenData::Fu => TokenKind::Fu,
             TokenData::Identifier(_) => TokenKind::Identifier,
-
-            TokenData::Print => TokenKind::Print,
         }
     }
 }
@@ -273,9 +268,6 @@ pub enum TokenKind {
     ///
     /// Must start with either an alphabetic character or an underscore, with all subsequent characters being alphanumeric or underscores.
     Identifier,
-
-    /// The `print` string.
-    Print,
 }
 
 impl TokenKind {

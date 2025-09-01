@@ -10,7 +10,7 @@ use std::{
 use crate::{
     environment::{Environment, EnvironmentError},
     statement::ControlFlow,
-    value::{Type, Value},
+    value::{Function, NativeFunction, Type, Value},
 };
 
 /// All errors which can occur while evaluating an expression.
@@ -500,7 +500,7 @@ impl Expression {
         arguments: Vec<Box<Expression>>,
     ) -> Result<Option<Value>, EvaluationError> {
         match function.evaluate_not_nothing(Rc::clone(&environment))? {
-            Value::Function { parameters, block } => {
+            Value::Function(Function::UserDefined { parameters, block }) => {
                 let mut call_scope =
                     Environment::new(Some(environment.borrow().global(Rc::clone(&environment))));
 
@@ -524,6 +524,40 @@ impl Expression {
                         ControlFlow::Continue => None,
                     })
             }
+            Value::Function(Function::Native(function)) => match function {
+                NativeFunction::Print => match &arguments[..] {
+                    [] => {
+                        println!();
+                        Ok(None)
+                    }
+                    [expression] => {
+                        // TODO: figure out how to do this without cloning
+                        println!(
+                            "{}",
+                            expression
+                                .clone()
+                                .evaluate_not_nothing(Rc::clone(&environment))?
+                        );
+                        Ok(None)
+                    }
+                    _ => Err(EvaluationError::IncorrectArgumentCount {
+                        expected: 1,
+                        passed: arguments.len(),
+                    }),
+                },
+                NativeFunction::Format => {
+                    let mut buffer = String::new();
+
+                    for argument in arguments {
+                        buffer.push_str(&format!(
+                            "{}",
+                            argument.evaluate_not_nothing(Rc::clone(&environment))?
+                        ));
+                    }
+
+                    Ok(Some(Value::String(buffer)))
+                }
+            },
             other => Err(EvaluationError::AttemptedCallOfNonFunction {
                 attempt: other.slang_type(),
             }),

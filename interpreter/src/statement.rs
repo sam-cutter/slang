@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     environment::Environment,
     expression::{EvaluationError, Expression},
-    value::Value,
+    value::{Function, Value},
 };
 
 pub enum ControlFlow {
@@ -13,7 +13,6 @@ pub enum ControlFlow {
 
 #[derive(Clone)]
 pub enum Statement {
-    Print(Expression),
     VariableDeclaration {
         identifier: String,
         initialiser: Option<Expression>,
@@ -45,13 +44,6 @@ impl Statement {
         environment: Rc<RefCell<Environment>>,
     ) -> Result<ControlFlow, EvaluationError> {
         match self {
-            Self::Print(expression) => {
-                println!(
-                    "{}",
-                    expression.evaluate_not_nothing(Rc::clone(&environment))?
-                );
-                Ok(ControlFlow::Continue)
-            }
             Self::VariableDeclaration {
                 identifier,
                 initialiser,
@@ -70,9 +62,10 @@ impl Statement {
                 parameters,
                 block,
             } => {
-                environment
-                    .borrow_mut()
-                    .define(identifier, Some(Value::Function { parameters, block }));
+                environment.borrow_mut().define(
+                    identifier,
+                    Some(Value::Function(Function::UserDefined { parameters, block })),
+                );
                 Ok(ControlFlow::Continue)
             }
             Self::IfStatement {

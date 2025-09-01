@@ -114,7 +114,6 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
         match self.tokens.peek().map(|token| token.kind()) {
-            Some(TokenKind::Print) => self.print_statement(),
             Some(TokenKind::Let) => self.variable_declaration(),
             Some(TokenKind::Fu) => self.function_definition(),
             Some(TokenKind::Return) => self.return_statement(),
@@ -123,16 +122,6 @@ impl Parser {
             Some(TokenKind::LeftBrace) => self.block(),
             _ => self.expression_statement(),
         }
-    }
-
-    fn print_statement(&mut self) -> Result<Statement, ParserError> {
-        self.tokens.consume(TokenKind::Print)?;
-
-        let expression = self.expression()?;
-
-        self.tokens.consume(TokenKind::Semicolon)?;
-
-        Ok(Statement::Print(expression))
     }
 
     fn variable_declaration(&mut self) -> Result<Statement, ParserError> {

@@ -2,7 +2,7 @@
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::value::Value;
+use crate::value::{Function, NativeFunction, Value};
 
 /// All errors which can occur while accessing the environment.
 pub enum EnvironmentError {
@@ -27,10 +27,23 @@ pub struct Environment {
 impl Environment {
     /// Creates a new [Environment].
     pub fn new(parent: Option<Rc<RefCell<Environment>>>) -> Self {
-        Self {
-            scope: HashMap::new(),
-            parent,
+        let mut scope = HashMap::new();
+
+        if parent.is_none() {
+            [
+                ("print", NativeFunction::Print),
+                ("format", NativeFunction::Format),
+            ]
+            .into_iter()
+            .for_each(|(identifier, function)| {
+                scope.insert(
+                    identifier.to_string(),
+                    Some(Value::Function(Function::Native(function))),
+                );
+            });
         }
+
+        Self { scope, parent }
     }
 
     /// Defines a new target and inserts it into the innermost scope.

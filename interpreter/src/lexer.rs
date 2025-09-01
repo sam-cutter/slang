@@ -336,8 +336,6 @@ impl Lexer {
             "let" => self.add_token(TokenData::Let),
             "fu" => self.add_token(TokenData::Fu),
 
-            "print" => self.add_token(TokenData::Print),
-
             _ => self.add_token(TokenData::Identifier(word)),
         };
     }
