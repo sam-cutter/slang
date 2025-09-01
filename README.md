@@ -50,7 +50,7 @@ factor -> unary (("*" | "/") unary)*
 
 unary -> ("!" | "-")? call
 
-call -> primary ( "(" (expression ("," expression)*)? ")" )*
+call -> primary ( ("(" (expression ("," expression)*)? ")") | "." IDENTIFIER )*
 
 primary -> "(" expression ")"
          | STRING

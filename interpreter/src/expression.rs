@@ -2,6 +2,7 @@
 
 use std::{
     cell::RefCell,
+    collections::HashMap,
     error::Error,
     fmt::{Debug, Display},
     rc::Rc,
@@ -53,6 +54,10 @@ pub enum EvaluationError {
         passed: usize,
     },
     AttemptToUseNothing,
+    AttemptToAccessNonObject {
+        attempt: Type,
+    },
+    UndefinedField(String),
 }
 
 impl From<EnvironmentError> for EvaluationError {
@@ -138,6 +143,18 @@ impl Display for EvaluationError {
                 f,
                 "Attempted to use the return value from a function, however the function returned nothing."
             ),
+            Self::AttemptToAccessNonObject { attempt } => write!(
+                f,
+                "Attempted to access a field of a value of type {}, like an object.",
+                attempt
+            ),
+            Self::UndefinedField(identifier) => {
+                write!(
+                    f,
+                    "Attempted to access a non-existent field `{}` on an object.",
+                    identifier
+                )
+            }
         }
     }
 }
@@ -181,11 +198,22 @@ pub enum Expression {
         value: Box<Expression>,
     },
     /// An expression surrounded by parenthesis.
-    Grouping { contained: Box<Expression> },
+    Grouping {
+        contained: Box<Expression>,
+    },
     /// A literal value.
-    Literal { value: Value },
+    Literal {
+        value: Value,
+    },
     /// A reference to a variable.
-    Variable { identifier: String },
+    Variable {
+        identifier: String,
+    },
+    FieldAccess {
+        object: Box<Expression>,
+        field: String,
+    },
+    Object(HashMap<String, Expression>),
 }
 
 impl Expression {
@@ -240,6 +268,34 @@ impl Expression {
             Self::Literal { value } => Ok(Some(value)),
 
             Self::Variable { identifier } => Ok(Some(environment.borrow().get(&identifier)?)),
+
+            Self::FieldAccess { object, field } => {
+                match object.evaluate_not_nothing(Rc::clone(&environment))? {
+                    Value::Object(fields) => {
+                        if let Some(value) = fields.get(&field).cloned() {
+                            Ok(Some(value))
+                        } else {
+                            Err(EvaluationError::UndefinedField(field))
+                        }
+                    }
+                    attempt => Err(EvaluationError::AttemptToAccessNonObject {
+                        attempt: attempt.slang_type(),
+                    }),
+                }
+            }
+
+            Self::Object(unevaluated_fields) => {
+                let mut fields = HashMap::new();
+
+                for (identifier, expression) in unevaluated_fields.into_iter() {
+                    fields.insert(
+                        identifier,
+                        expression.evaluate_not_nothing(Rc::clone(&environment))?,
+                    );
+                }
+
+                Ok(Some(Value::Object(fields)))
+            }
         }
     }
 

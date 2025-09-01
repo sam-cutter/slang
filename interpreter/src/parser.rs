@@ -437,32 +437,48 @@ impl Parser {
     }
 
     fn call(&mut self) -> Result<Expression, ParserError> {
-        let mut function = self.primary()?;
+        let mut expression = self.primary()?;
 
-        while self.tokens.matches(&[TokenKind::LeftParenthesis]) {
-            let mut arguments = Vec::new();
+        while let Some(token) = self
+            .tokens
+            .only_take(&[TokenKind::LeftParenthesis, TokenKind::Dot])
+        {
+            match token.kind() {
+                TokenKind::LeftParenthesis => {
+                    let mut arguments = Vec::new();
 
-            if self
-                .tokens
-                .peek()
-                .is_some_and(|token| token.kind() != TokenKind::RightParenthesis)
-            {
-                arguments.push(Box::new(self.expression()?));
+                    if self
+                        .tokens
+                        .peek()
+                        .is_some_and(|token| token.kind() != TokenKind::RightParenthesis)
+                    {
+                        arguments.push(Box::new(self.expression()?));
 
-                while self.tokens.matches(&[TokenKind::Comma]) {
-                    arguments.push(Box::new(self.expression()?));
+                        while self.tokens.matches(&[TokenKind::Comma]) {
+                            arguments.push(Box::new(self.expression()?));
+                        }
+                    }
+
+                    self.tokens.consume(TokenKind::RightParenthesis)?;
+
+                    expression = Expression::Call {
+                        function: Box::new(expression),
+                        arguments,
+                    }
                 }
-            }
+                TokenKind::Dot => {
+                    let field = self.tokens.consume_identifier()?;
 
-            self.tokens.consume(TokenKind::RightParenthesis)?;
-
-            function = Expression::Call {
-                function: Box::new(function),
-                arguments,
+                    expression = Expression::FieldAccess {
+                        object: Box::new(expression),
+                        field,
+                    }
+                }
+                _ => unreachable!(),
             }
         }
 
-        Ok(function)
+        Ok(expression)
     }
 
     fn primary(&mut self) -> Result<Expression, ParserError> {
@@ -524,7 +540,7 @@ impl Parser {
 
                         self.tokens.consume(TokenKind::RightBrace)?;
 
-                        Value::Object(fields)
+                        return Ok(Expression::Object(fields.into_iter().collect()));
                     }
 
                     _ => unreachable!(),

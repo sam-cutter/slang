@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
-use crate::{expression::Expression, statement::Statement};
+use crate::statement::Statement;
 
 #[derive(Clone)]
 pub enum NativeFunction {
@@ -24,7 +24,7 @@ pub enum Value {
     Integer(i32),
     Boolean(bool),
     Function(Function),
-    Object(Vec<(String, Expression)>),
+    Object(HashMap<String, Value>),
 }
 
 impl Display for Value {
