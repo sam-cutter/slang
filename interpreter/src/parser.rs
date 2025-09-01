@@ -264,15 +264,19 @@ impl Parser {
         if let Some(equals) = self.tokens.only_take(&[TokenKind::Equal]) {
             let value = self.assignment()?;
 
-            if let Expression::Variable { identifier } = expression {
-                Ok(Expression::Assignment {
-                    identifier: identifier,
+            match expression {
+                Expression::GetField { object, field } => Ok(Expression::SetField {
+                    object,
+                    field,
                     value: Box::new(value),
-                })
-            } else {
-                Err(ParserError::InvalidAssignmentTarget {
+                }),
+                Expression::Variable { identifier } => Ok(Expression::Assignment {
+                    identifier,
+                    value: Box::new(value),
+                }),
+                _ => Err(ParserError::InvalidAssignmentTarget {
                     location: equals.location(),
-                })
+                }),
             }
         } else {
             Ok(expression)
@@ -469,7 +473,7 @@ impl Parser {
                 TokenKind::Dot => {
                     let field = self.tokens.consume_identifier()?;
 
-                    expression = Expression::FieldAccess {
+                    expression = Expression::GetField {
                         object: Box::new(expression),
                         field,
                     }

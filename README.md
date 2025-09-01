@@ -31,7 +31,7 @@ block -> "{" statement* "}"
 
 expression -> assignment
 
-assignment -> IDENTIFIER "=" assignment
+assignment -> (call ".")? IDENTIFIER "=" assignment
             | ternary
 
 ternary -> logical ("?" logical ":" logical)?

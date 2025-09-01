@@ -209,9 +209,14 @@ pub enum Expression {
     Variable {
         identifier: String,
     },
-    FieldAccess {
+    GetField {
         object: Box<Expression>,
         field: String,
+    },
+    SetField {
+        object: Box<Expression>,
+        field: String,
+        value: Box<Expression>,
     },
     Object(HashMap<String, Expression>),
 }
@@ -269,7 +274,7 @@ impl Expression {
 
             Self::Variable { identifier } => Ok(Some(environment.borrow().get(&identifier)?)),
 
-            Self::FieldAccess { object, field } => {
+            Self::GetField { object, field } => {
                 match object.evaluate_not_nothing(Rc::clone(&environment))? {
                     Value::Object(fields) => {
                         if let Some(value) = fields.get(&field).cloned() {
@@ -283,6 +288,21 @@ impl Expression {
                     }),
                 }
             }
+
+            Self::SetField {
+                object,
+                field,
+                value,
+            } => match object.evaluate_not_nothing(Rc::clone(&environment))? {
+                // TODO: this isn't working because evaluate just clones the object. This is where we bring in the heap.
+                Value::Object(mut fields) => {
+                    fields.insert(field, value.evaluate_not_nothing(Rc::clone(&environment))?);
+                    Ok(None)
+                }
+                attempt => Err(EvaluationError::AttemptToAccessNonObject {
+                    attempt: attempt.slang_type(),
+                }),
+            },
 
             Self::Object(unevaluated_fields) => {
                 let mut fields = HashMap::new();
