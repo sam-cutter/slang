@@ -12,10 +12,11 @@ use source::Source;
 use statement::Statement;
 use token_stream::TokenStream;
 
-use crate::statement::ControlFlow;
+use crate::{heap::ManagedHeap, statement::ControlFlow};
 
 mod environment;
 mod expression;
+mod heap;
 mod lexer;
 mod parser;
 mod source;
@@ -41,6 +42,7 @@ fn run_prompt() {
     let mut stdout = io::stdout().lock();
 
     let environment = Rc::new(RefCell::new(Environment::new(None)));
+    let mut heap = ManagedHeap::new();
 
     loop {
         line.clear();
@@ -49,7 +51,7 @@ fn run_prompt() {
         let _ = stdout.flush();
         let _ = stdin.read_line(&mut line);
 
-        run(line.trim(), Rc::clone(&environment));
+        run(line.trim(), Rc::clone(&environment), &mut heap);
     }
 }
 
@@ -57,14 +59,15 @@ fn run_file(filename: &str) {
     let contents = fs::read_to_string(filename);
 
     let environment = Rc::new(RefCell::new(Environment::new(None)));
+    let mut heap = ManagedHeap::new();
 
     match contents {
-        Ok(source) => run(&source, environment),
+        Ok(source) => run(&source, environment, &mut heap),
         Err(error) => eprintln!("{}", error),
     }
 }
 
-fn run(source: &str, environment: Rc<RefCell<Environment>>) {
+fn run(source: &str, environment: Rc<RefCell<Environment>>, heap: &mut ManagedHeap) {
     let source = Source::new(source);
 
     let lexer = Lexer::new(source);
@@ -94,7 +97,7 @@ fn run(source: &str, environment: Rc<RefCell<Environment>>) {
                         parameters: _,
                         block: _,
                     } => {
-                        if let Err(error) = statement.execute(Rc::clone(&environment)) {
+                        if let Err(error) = statement.execute(Rc::clone(&environment), heap) {
                             eprintln!("{}", error);
                             return;
                         }
@@ -104,7 +107,7 @@ fn run(source: &str, environment: Rc<RefCell<Environment>>) {
             }
 
             for statement in non_definitions {
-                match statement.execute(Rc::clone(&environment)) {
+                match statement.execute(Rc::clone(&environment), heap) {
                     Ok(control) => match control {
                         ControlFlow::Continue => continue,
                         ControlFlow::Break(_) => return,

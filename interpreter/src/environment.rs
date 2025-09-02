@@ -2,7 +2,10 @@
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::value::{Function, NativeFunction, Value};
+use crate::{
+    heap::Pointer,
+    value::{Function, NativeFunction, Value},
+};
 
 /// All errors which can occur while accessing the environment.
 pub enum EnvironmentError {
@@ -100,5 +103,21 @@ impl Environment {
         } else {
             self_reference
         }
+    }
+
+    pub fn roots(&self) -> Vec<Pointer> {
+        let mut roots = Vec::new();
+
+        for value in self.scope.values() {
+            if let Some(Value::Object(pointer)) = value {
+                roots.push(pointer.clone());
+            }
+        }
+
+        if let Some(parent) = &self.parent {
+            roots.append(&mut parent.borrow().roots());
+        }
+
+        roots
     }
 }

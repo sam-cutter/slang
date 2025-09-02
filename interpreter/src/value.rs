@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
-use crate::statement::Statement;
+use crate::{heap::Pointer, statement::Statement};
 
 #[derive(Clone)]
 pub enum NativeFunction {
@@ -24,7 +24,7 @@ pub enum Value {
     Integer(i32),
     Boolean(bool),
     Function(Function),
-    Object(HashMap<String, Value>),
+    Object(Pointer),
 }
 
 impl Display for Value {
@@ -41,11 +41,13 @@ impl Display for Value {
                     block: _,
                 } => write!(f, "<function with {} named parameters>", parameters.len()),
             },
-            Self::Object(fields) => {
+            Self::Object(pointer) => {
                 write!(
                     f,
                     "{{ {} }}",
-                    fields
+                    pointer
+                        .borrow()
+                        .data
                         .iter()
                         .map(|(identifier, _expression)| format!("{}", identifier))
                         .collect::<Vec<String>>()

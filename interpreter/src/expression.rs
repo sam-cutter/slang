@@ -10,6 +10,7 @@ use std::{
 
 use crate::{
     environment::{Environment, EnvironmentError},
+    heap::ManagedHeap,
     statement::ControlFlow,
     value::{Function, NativeFunction, Type, Value},
 };
@@ -226,8 +227,9 @@ impl Expression {
     pub fn evaluate_not_nothing(
         self,
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
     ) -> Result<Value, EvaluationError> {
-        self.evaluate(environment).map(|value| match value {
+        self.evaluate(environment, heap).map(|value| match value {
             Some(value) => Ok(value),
             None => Err(EvaluationError::AttemptToUseNothing),
         })?
@@ -237,47 +239,48 @@ impl Expression {
     pub fn evaluate(
         self,
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
     ) -> Result<Option<Value>, EvaluationError> {
         match self {
             Self::Ternary {
                 condition,
                 left,
                 right,
-            } => Expression::evaluate_ternary(environment, condition, left, right),
+            } => Expression::evaluate_ternary(environment, heap, condition, left, right),
 
             Self::Binary {
                 left,
                 operator,
                 right,
-            } => Expression::evaluate_binary(environment, left, operator, right),
+            } => Expression::evaluate_binary(environment, heap, left, operator, right),
 
             Self::Unary { operator, operand } => {
-                Expression::evaluate_unary(environment, operator, operand)
+                Expression::evaluate_unary(environment, heap, operator, operand)
             }
 
             Self::Call {
                 function,
                 arguments,
-            } => Expression::evaluate_call(environment, function, arguments),
+            } => Expression::evaluate_call(environment, heap, function, arguments),
 
             Self::Assignment { identifier, value } => {
-                let value = value.evaluate(Rc::clone(&environment))?;
+                let value = value.evaluate(Rc::clone(&environment), heap)?;
 
                 environment.borrow_mut().assign(identifier, value.clone())?;
 
                 Ok(value)
             }
 
-            Self::Grouping { contained } => contained.evaluate(environment),
+            Self::Grouping { contained } => contained.evaluate(environment, heap),
 
             Self::Literal { value } => Ok(Some(value)),
 
             Self::Variable { identifier } => Ok(Some(environment.borrow().get(&identifier)?)),
 
             Self::GetField { object, field } => {
-                match object.evaluate_not_nothing(Rc::clone(&environment))? {
-                    Value::Object(fields) => {
-                        if let Some(value) = fields.get(&field).cloned() {
+                match object.evaluate_not_nothing(Rc::clone(&environment), heap)? {
+                    Value::Object(pointer) => {
+                        if let Some(value) = pointer.borrow().data.get(&field).cloned() {
                             Ok(Some(value))
                         } else {
                             Err(EvaluationError::UndefinedField(field))
@@ -293,10 +296,15 @@ impl Expression {
                 object,
                 field,
                 value,
-            } => match object.evaluate_not_nothing(Rc::clone(&environment))? {
+            } => match object.evaluate_not_nothing(Rc::clone(&environment), heap)? {
                 // TODO: this isn't working because evaluate just clones the object. This is where we bring in the heap.
-                Value::Object(mut fields) => {
-                    fields.insert(field, value.evaluate_not_nothing(Rc::clone(&environment))?);
+                Value::Object(pointer) => {
+                    let fields = &mut pointer.borrow_mut().data;
+
+                    fields.insert(
+                        field,
+                        value.evaluate_not_nothing(Rc::clone(&environment), heap)?,
+                    );
                     Ok(None)
                 }
                 attempt => Err(EvaluationError::AttemptToAccessNonObject {
@@ -310,11 +318,11 @@ impl Expression {
                 for (identifier, expression) in unevaluated_fields.into_iter() {
                     fields.insert(
                         identifier,
-                        expression.evaluate_not_nothing(Rc::clone(&environment))?,
+                        expression.evaluate_not_nothing(Rc::clone(&environment), heap)?,
                     );
                 }
 
-                Ok(Some(Value::Object(fields)))
+                Ok(Some(Value::Object(heap.allocate(fields))))
             }
         }
     }
@@ -322,17 +330,18 @@ impl Expression {
     /// Evaluates a ternary expression.
     fn evaluate_ternary(
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
         condition: Box<Expression>,
         left: Box<Expression>,
         right: Box<Expression>,
     ) -> Result<Option<Value>, EvaluationError> {
-        let condition = condition.evaluate_not_nothing(Rc::clone(&environment))?;
+        let condition = condition.evaluate_not_nothing(Rc::clone(&environment), heap)?;
 
         if let Value::Boolean(condition) = condition {
             if condition {
-                return left.evaluate(Rc::clone(&environment));
+                return left.evaluate(Rc::clone(&environment), heap);
             } else {
-                return right.evaluate(Rc::clone(&environment));
+                return right.evaluate(Rc::clone(&environment), heap);
             }
         } else {
             return Err(EvaluationError::NonBooleanTernaryCondition {
@@ -344,12 +353,13 @@ impl Expression {
     /// Evaluates a binary expression.
     fn evaluate_binary(
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
         left: Box<Expression>,
         operator: BinaryOperator,
         right: Box<Expression>,
     ) -> Result<Option<Value>, EvaluationError> {
         Ok(Some(match operator {
-            BinaryOperator::Add => match Self::binary_operands(left, right, environment)? {
+            BinaryOperator::Add => match Self::binary_operands(left, right, environment, heap)? {
                 (Value::String(left), Value::String(right)) => {
                     let mut new = left;
                     new.push_str(&right);
@@ -364,49 +374,56 @@ impl Expression {
                 })?,
             },
 
-            BinaryOperator::Subtract => match Self::binary_operands(left, right, environment)? {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
-                (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
-
-            BinaryOperator::Multiply => match Self::binary_operands(left, right, environment)? {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
-                (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
-
-            BinaryOperator::Divide => match Self::binary_operands(left, right, environment)? {
-                (Value::Integer(left), Value::Integer(right)) => {
-                    if right == 0 {
-                        return Err(EvaluationError::DivisionByZero);
-                    }
-
-                    Value::Integer(left / right)
+            BinaryOperator::Subtract => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left - right),
+                    (Value::Float(left), Value::Float(right)) => Value::Float(left - right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
                 }
-                (Value::Float(left), Value::Float(right)) => {
-                    if right == 0.0 {
-                        return Err(EvaluationError::DivisionByZero);
-                    }
+            }
 
-                    Value::Float(left / right)
+            BinaryOperator::Multiply => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left * right),
+                    (Value::Float(left), Value::Float(right)) => Value::Float(left * right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
                 }
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
+            }
 
-            BinaryOperator::EqualTo => match Self::binary_operands(left, right, environment)? {
+            BinaryOperator::Divide => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::Integer(left), Value::Integer(right)) => {
+                        if right == 0 {
+                            return Err(EvaluationError::DivisionByZero);
+                        }
+
+                        Value::Integer(left / right)
+                    }
+                    (Value::Float(left), Value::Float(right)) => {
+                        if right == 0.0 {
+                            return Err(EvaluationError::DivisionByZero);
+                        }
+
+                        Value::Float(left / right)
+                    }
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
+
+            BinaryOperator::EqualTo => match Self::binary_operands(left, right, environment, heap)?
+            {
                 (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
                 (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
                 (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
@@ -418,31 +435,35 @@ impl Expression {
                 })?,
             },
 
-            BinaryOperator::NotEqualTo => match Self::binary_operands(left, right, environment)? {
-                (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
+            BinaryOperator::NotEqualTo => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
 
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
+                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
 
-            BinaryOperator::GreaterThan => match Self::binary_operands(left, right, environment)? {
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
+            BinaryOperator::GreaterThan => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
 
             BinaryOperator::GreaterThanOrEqualTo => {
-                match Self::binary_operands(left, right, environment)? {
+                match Self::binary_operands(left, right, environment, heap)? {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left >= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left >= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -453,18 +474,20 @@ impl Expression {
                 }
             }
 
-            BinaryOperator::LessThan => match Self::binary_operands(left, right, environment)? {
-                (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
-                (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
+            BinaryOperator::LessThan => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
+                    (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
 
             BinaryOperator::LessThanOrEqualTo => {
-                match Self::binary_operands(left, right, environment)? {
+                match Self::binary_operands(left, right, environment, heap)? {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left <= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left <= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -475,34 +498,36 @@ impl Expression {
                 }
             }
 
-            BinaryOperator::AND => match left.evaluate_not_nothing(Rc::clone(&environment))? {
-                Value::Boolean(left) => {
-                    if left {
-                        match right.evaluate_not_nothing(Rc::clone(&environment))? {
-                            Value::Boolean(right) => Value::Boolean(left && right),
-                            right => Err(EvaluationError::InvalidBinaryTypes {
-                                left: Type::Boolean,
-                                operator,
-                                right: Some(right.slang_type()),
-                            })?,
+            BinaryOperator::AND => {
+                match left.evaluate_not_nothing(Rc::clone(&environment), heap)? {
+                    Value::Boolean(left) => {
+                        if left {
+                            match right.evaluate_not_nothing(Rc::clone(&environment), heap)? {
+                                Value::Boolean(right) => Value::Boolean(left && right),
+                                right => Err(EvaluationError::InvalidBinaryTypes {
+                                    left: Type::Boolean,
+                                    operator,
+                                    right: Some(right.slang_type()),
+                                })?,
+                            }
+                        } else {
+                            Value::Boolean(false)
                         }
-                    } else {
-                        Value::Boolean(false)
                     }
+                    left => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: None,
+                    })?,
                 }
-                left => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: None,
-                })?,
-            },
+            }
 
-            BinaryOperator::OR => match left.evaluate_not_nothing(Rc::clone(&environment))? {
+            BinaryOperator::OR => match left.evaluate_not_nothing(Rc::clone(&environment), heap)? {
                 Value::Boolean(left) => {
                     if left {
                         Value::Boolean(true)
                     } else {
-                        match right.evaluate_not_nothing(Rc::clone(&environment))? {
+                        match right.evaluate_not_nothing(Rc::clone(&environment), heap)? {
                             Value::Boolean(right) => Value::Boolean(left || right),
                             right => Err(EvaluationError::InvalidBinaryTypes {
                                 left: Type::Boolean,
@@ -519,35 +544,40 @@ impl Expression {
                 })?,
             },
 
-            BinaryOperator::BitwiseAND => match Self::binary_operands(left, right, environment)? {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
+            BinaryOperator::BitwiseAND => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left & right),
+                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left & right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
 
-            BinaryOperator::BitwiseOR => match Self::binary_operands(left, right, environment)? {
-                (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
-                (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
-                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
-                    left: left.slang_type(),
-                    operator,
-                    right: Some(right.slang_type()),
-                })?,
-            },
+            BinaryOperator::BitwiseOR => {
+                match Self::binary_operands(left, right, environment, heap)? {
+                    (Value::Integer(left), Value::Integer(right)) => Value::Integer(left | right),
+                    (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left | right),
+                    (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                        left: left.slang_type(),
+                        operator,
+                        right: Some(right.slang_type()),
+                    })?,
+                }
+            }
         }))
     }
 
     /// Evaluates a unary expression.
     fn evaluate_unary(
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
         operator: UnaryOperator,
         operand: Box<Expression>,
     ) -> Result<Option<Value>, EvaluationError> {
-        let operand = operand.evaluate_not_nothing(Rc::clone(&environment))?;
+        let operand = operand.evaluate_not_nothing(Rc::clone(&environment), heap)?;
 
         Ok(Some(match operator {
             UnaryOperator::Minus => match operand {
@@ -572,10 +602,11 @@ impl Expression {
     /// Evaluates a function call.
     fn evaluate_call(
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
         function: Box<Expression>,
         arguments: Vec<Box<Expression>>,
     ) -> Result<Option<Value>, EvaluationError> {
-        match function.evaluate_not_nothing(Rc::clone(&environment))? {
+        match function.evaluate_not_nothing(Rc::clone(&environment), heap)? {
             Value::Function(Function::UserDefined { parameters, block }) => {
                 let mut call_scope =
                     Environment::new(Some(environment.borrow().global(Rc::clone(&environment))));
@@ -588,17 +619,17 @@ impl Expression {
                 }
 
                 for (parameter, argument) in parameters.into_iter().zip(arguments) {
-                    let argument = argument.evaluate(Rc::clone(&environment))?;
+                    let argument = argument.evaluate(Rc::clone(&environment), heap)?;
 
                     call_scope.define(parameter, argument);
                 }
 
-                block
-                    .execute(Rc::new(RefCell::new(call_scope)))
-                    .map(|control| match control {
+                block.execute(Rc::new(RefCell::new(call_scope)), heap).map(
+                    |control| match control {
                         ControlFlow::Break(value) => value,
                         ControlFlow::Continue => None,
-                    })
+                    },
+                )
             }
             Value::Function(Function::Native(function)) => match function {
                 NativeFunction::Print => match &arguments[..] {
@@ -612,7 +643,7 @@ impl Expression {
                             "{}",
                             expression
                                 .clone()
-                                .evaluate_not_nothing(Rc::clone(&environment))?
+                                .evaluate_not_nothing(Rc::clone(&environment), heap)?
                         );
                         Ok(None)
                     }
@@ -627,7 +658,7 @@ impl Expression {
                     for argument in arguments {
                         buffer.push_str(&format!(
                             "{}",
-                            argument.evaluate_not_nothing(Rc::clone(&environment))?
+                            argument.evaluate_not_nothing(Rc::clone(&environment), heap)?
                         ));
                     }
 
@@ -645,10 +676,11 @@ impl Expression {
         left: Box<Expression>,
         right: Box<Expression>,
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
     ) -> Result<(Value, Value), EvaluationError> {
         Ok((
-            left.evaluate_not_nothing(Rc::clone(&environment))?,
-            right.evaluate_not_nothing(Rc::clone(&environment))?,
+            left.evaluate_not_nothing(Rc::clone(&environment), heap)?,
+            right.evaluate_not_nothing(Rc::clone(&environment), heap)?,
         ))
     }
 }

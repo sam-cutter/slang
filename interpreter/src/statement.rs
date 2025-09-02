@@ -3,6 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     environment::Environment,
     expression::{EvaluationError, Expression},
+    heap::ManagedHeap,
     value::{Function, Value},
 };
 
@@ -42,6 +43,7 @@ impl Statement {
     pub fn execute(
         self,
         environment: Rc<RefCell<Environment>>,
+        heap: &mut ManagedHeap,
     ) -> Result<ControlFlow, EvaluationError> {
         match self {
             Self::VariableDeclaration {
@@ -50,7 +52,7 @@ impl Statement {
             } => {
                 let initialiser = match initialiser {
                     Some(initialiser) => {
-                        Some(initialiser.evaluate_not_nothing(Rc::clone(&environment))?)
+                        Some(initialiser.evaluate_not_nothing(Rc::clone(&environment), heap)?)
                     }
                     None => None,
                 };
@@ -73,14 +75,14 @@ impl Statement {
                 execute_if_true,
                 execute_if_false,
             } => {
-                let condition = condition.evaluate_not_nothing(Rc::clone(&environment))?;
+                let condition = condition.evaluate_not_nothing(Rc::clone(&environment), heap)?;
 
                 if let Value::Boolean(condition) = condition {
                     if condition {
-                        execute_if_true.execute(Rc::clone(&environment))
+                        execute_if_true.execute(Rc::clone(&environment), heap)
                     } else {
                         match execute_if_false {
-                            Some(if_false) => if_false.execute(Rc::clone(&environment)),
+                            Some(if_false) => if_false.execute(Rc::clone(&environment), heap),
                             None => Ok(ControlFlow::Continue),
                         }
                     }
@@ -94,7 +96,7 @@ impl Statement {
             Self::WhileLoop { condition, block } => {
                 while match condition
                     .clone()
-                    .evaluate_not_nothing(Rc::clone(&environment))?
+                    .evaluate_not_nothing(Rc::clone(&environment), heap)?
                 {
                     Value::Boolean(condition) => condition,
                     condition => Err(EvaluationError::NonBooleanControlFlowCondition {
@@ -102,7 +104,7 @@ impl Statement {
                         control_flow: "while-loop".to_string(),
                     })?,
                 } {
-                    match block.clone().execute(Rc::clone(&environment))? {
+                    match block.clone().execute(Rc::clone(&environment), heap)? {
                         ControlFlow::Break(value) => return Ok(ControlFlow::Break(value)),
                         ControlFlow::Continue => continue,
                     }
@@ -111,7 +113,9 @@ impl Statement {
                 Ok(ControlFlow::Continue)
             }
             Self::Block { statements } => {
-                let block_scope = Rc::new(RefCell::new(Environment::new(Some(environment))));
+                let block_scope = Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
+                    &environment,
+                )))));
 
                 let mut non_definitions = Vec::new();
 
@@ -122,28 +126,31 @@ impl Statement {
                             parameters: _,
                             block: _,
                         } => {
-                            statement.execute(Rc::clone(&block_scope))?;
+                            statement.execute(Rc::clone(&block_scope), heap)?;
                         }
                         _ => non_definitions.push(statement),
                     }
                 }
 
                 for statement in non_definitions {
-                    match statement.execute(Rc::clone(&block_scope))? {
+                    match statement.execute(Rc::clone(&block_scope), heap)? {
                         ControlFlow::Break(value) => return Ok(ControlFlow::Break(value)),
                         ControlFlow::Continue => continue,
                     }
                 }
 
+                // TODO: this doesn't work inside functions properly! Because the environment which called it may not be the global one, there's a chance that parent environments can get cleaned up which shouldn't.
+                heap.manage(&environment.borrow().roots());
+
                 Ok(ControlFlow::Continue)
             }
-            Self::Expression(expression) => match expression.evaluate(environment) {
+            Self::Expression(expression) => match expression.evaluate(environment, heap) {
                 Ok(_) => Ok(ControlFlow::Continue),
                 Err(error) => Err(error),
             },
             Self::Return(expression) => match expression {
                 Some(expression) => Ok(ControlFlow::Break(
-                    expression.evaluate(Rc::clone(&environment))?,
+                    expression.evaluate(Rc::clone(&environment), heap)?,
                 )),
                 None => Ok(ControlFlow::Break(None)),
             },
