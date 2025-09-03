@@ -3,7 +3,10 @@ use std::{
     io::{self, BufRead, Write},
 };
 
-use heap::ManagedHeap;
+use heap::{
+    ManagedHeap, garbage_collected::GarbageCollectedHeap, naive::NaiveHeap,
+    reference_counted::ReferenceCountedHeap,
+};
 use lexer::Lexer;
 use parser::Parser;
 use source::Source;
@@ -27,20 +30,26 @@ fn main() {
     let args = &env::args().collect::<Vec<String>>()[..];
 
     match args {
-        [_executable] => run_prompt(),
-        [_executable, filename] => run_file(filename),
-        _ => println!("Usage: slang [filename]"),
+        [_executable, heap] if heap == "gc" => run_prompt(gc()),
+        [_executable, heap] if heap == "rc" => run_prompt(rc()),
+        [_executable, heap] if heap == "na" => run_prompt(na()),
+
+        [_executable, heap, filename] if heap == "gc" => run_file(filename, gc()),
+        [_executable, heap, filename] if heap == "rc" => run_file(filename, rc()),
+        [_executable, heap, filename] if heap == "na" => run_file(filename, na()),
+
+        _ => println!("Usage: slang <gc|rc|na> [filename]"),
     }
 }
 
-fn run_prompt() {
+fn run_prompt(heap: ManagedHeap) {
     let mut line = String::new();
 
     let mut stdin = io::stdin().lock();
     let mut stdout = io::stdout().lock();
 
     let mut stack = Stack::new();
-    let mut heap = ManagedHeap::new();
+    let mut heap = heap;
 
     loop {
         line.clear();
@@ -53,11 +62,11 @@ fn run_prompt() {
     }
 }
 
-fn run_file(filename: &str) {
+fn run_file(filename: &str, heap: ManagedHeap) {
     let contents = fs::read_to_string(filename);
 
     let mut stack = Stack::new();
-    let mut heap = ManagedHeap::new();
+    let mut heap = heap;
 
     match contents {
         Ok(source) => run(&source, &mut stack, &mut heap),
@@ -123,4 +132,16 @@ fn run(source: &str, stack: &mut Stack, heap: &mut ManagedHeap) {
             }
         }
     }
+}
+
+fn gc() -> ManagedHeap {
+    ManagedHeap::GarbageCollected(GarbageCollectedHeap::new())
+}
+
+fn rc() -> ManagedHeap {
+    ManagedHeap::ReferenceCounted(ReferenceCountedHeap::new())
+}
+
+fn na() -> ManagedHeap {
+    ManagedHeap::Naive(NaiveHeap::new())
 }

@@ -1,6 +1,6 @@
 //! Environments and scopes for the slang programming language.
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, mem, rc::Rc};
 
 use crate::{
     heap::Pointer,
@@ -63,11 +63,15 @@ impl Environment {
         &mut self,
         identifier: String,
         value: Option<Value>,
-    ) -> Result<(), EnvironmentError> {
+    ) -> Result<Option<Value>, EnvironmentError> {
         if let Some(target) = self.scope.get_mut(&identifier) {
-            *target = value;
+            let mut value = value;
 
-            Ok(())
+            mem::swap(target, &mut value);
+
+            let previous = value;
+
+            Ok(previous)
         } else if let Some(parent) = &self.parent {
             parent.borrow_mut().assign(identifier, value)
         } else {

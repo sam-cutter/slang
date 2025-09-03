@@ -1,21 +1,15 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
-use crate::value::Value;
+use crate::{
+    heap::{HeapObject, Object, Pointer},
+    value::Value,
+};
 
-type Object = HashMap<String, Value>;
-
-pub struct HeapObject {
-    pub data: Object,
-    pub marked: bool,
-}
-
-pub type Pointer = Rc<RefCell<HeapObject>>;
-
-pub struct ManagedHeap {
+pub struct GarbageCollectedHeap {
     heap: Vec<Pointer>,
 }
 
-impl ManagedHeap {
+impl GarbageCollectedHeap {
     pub fn new() -> Self {
         Self { heap: Vec::new() }
     }
@@ -24,6 +18,7 @@ impl ManagedHeap {
         let heap_object = HeapObject {
             data,
             marked: false,
+            reference_count: 1,
         };
 
         let pointer = Pointer::new(RefCell::new(heap_object));

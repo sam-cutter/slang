@@ -52,6 +52,8 @@ impl Statement {
                     Some(initialiser) => Some(initialiser.evaluate_not_nothing(stack, heap)?),
                     None => None,
                 };
+
+                // TODO: increment count if necessary
                 stack.top().borrow_mut().define(identifier, initialiser);
                 Ok(ControlFlow::Continue)
             }
@@ -123,18 +125,27 @@ impl Statement {
                     }
                 }
 
+                let mut return_value = ControlFlow::Continue;
+
                 for statement in non_definitions {
                     match statement.execute(stack, heap)? {
-                        ControlFlow::Break(value) => return Ok(ControlFlow::Break(value)),
+                        ControlFlow::Break(value) => {
+                            return_value = ControlFlow::Break(value);
+                            break;
+                        }
                         ControlFlow::Continue => continue,
                     }
                 }
 
                 stack.exit_scope();
 
-                heap.manage(&stack.roots());
+                // TODO: decrement reference counts
 
-                Ok(ControlFlow::Continue)
+                if let ManagedHeap::GarbageCollected(heap) = heap {
+                    heap.manage(&stack.roots());
+                }
+
+                Ok(return_value)
             }
             Self::Expression(expression) => match expression.evaluate(stack, heap) {
                 Ok(_) => Ok(ControlFlow::Continue),

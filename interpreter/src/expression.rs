@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     environment::EnvironmentError,
-    heap::ManagedHeap,
+    heap::{ManagedHeap, Pointer},
     stack::Stack,
     statement::ControlFlow,
     value::{Function, NativeFunction, Type, Value},
@@ -263,11 +263,22 @@ impl Expression {
             } => Expression::evaluate_call(stack, heap, function, arguments),
 
             Self::Assignment { identifier, value } => {
-                let value = value.evaluate(stack, heap)?;
+                let next = value.evaluate(stack, heap)?;
 
-                stack.top().borrow_mut().assign(identifier, value.clone())?;
+                let previous = stack.top().borrow_mut().assign(identifier, next.clone())?;
 
-                Ok(value)
+                if let ManagedHeap::ReferenceCounted(heap) = heap {
+                    if let Some(Value::Object(pointer)) = previous {
+                        heap.decrement(pointer);
+                    }
+
+                    // TODO: figure out whether I actually need to increment this or not
+                    if let Some(Value::Object(pointer)) = &next {
+                        heap.increment(Pointer::clone(pointer));
+                    }
+                }
+
+                Ok(next)
             }
 
             Self::Grouping { contained } => contained.evaluate(stack, heap),
@@ -295,8 +306,23 @@ impl Expression {
                 value,
             } => match object.evaluate_not_nothing(stack, heap)? {
                 Value::Object(pointer) => {
+                    let next = value.evaluate_not_nothing(stack, heap)?;
+
                     let fields = &mut pointer.borrow_mut().data;
-                    fields.insert(field, value.evaluate_not_nothing(stack, heap)?);
+
+                    let previous = fields.insert(field, next.clone());
+
+                    if let ManagedHeap::ReferenceCounted(heap) = heap {
+                        if let Some(Value::Object(pointer)) = previous {
+                            heap.decrement(pointer);
+                        }
+
+                        // TODO: figure out whether I actually need to increment this or not
+                        if let Value::Object(pointer) = next {
+                            heap.increment(pointer);
+                        }
+                    }
+
                     Ok(None)
                 }
                 attempt => Err(EvaluationError::AttemptToAccessNonObject {
@@ -597,6 +623,8 @@ impl Expression {
 
                 let call_scope = stack.push();
 
+                // TODO: increment counts if necessary
+
                 parameters.into_iter().zip(evaluated_arguments).for_each(
                     |(parameter, argument)| {
                         call_scope.borrow_mut().define(parameter, Some(argument))
@@ -607,6 +635,8 @@ impl Expression {
                     ControlFlow::Break(value) => value,
                     ControlFlow::Continue => None,
                 });
+
+                // TODO: decrement all variables which went in the previous call frame
 
                 stack.pop();
 
