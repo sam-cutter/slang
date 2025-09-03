@@ -33,8 +33,6 @@ impl ManagedHeap {
     }
 
     pub fn manage(&mut self, roots: &[Pointer]) {
-        println!("Before management, size of heap was {}", self.heap.len());
-
         for root in roots {
             self.traverse(Rc::clone(&root));
         }
@@ -44,8 +42,6 @@ impl ManagedHeap {
         for object in &self.heap {
             object.borrow_mut().marked = false;
         }
-
-        println!("After management, size of heap was {}", self.heap.len());
     }
 
     fn traverse(&mut self, root: Pointer) {

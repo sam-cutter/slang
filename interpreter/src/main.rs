@@ -1,18 +1,15 @@
 use std::{
-    cell::RefCell,
     env, fs,
     io::{self, BufRead, Write},
-    rc::Rc,
 };
 
-use environment::Environment;
+use heap::ManagedHeap;
 use lexer::Lexer;
 use parser::Parser;
 use source::Source;
-use statement::Statement;
+use stack::Stack;
+use statement::{ControlFlow, Statement};
 use token_stream::TokenStream;
-
-use crate::{heap::ManagedHeap, statement::ControlFlow};
 
 mod environment;
 mod expression;
@@ -20,6 +17,7 @@ mod heap;
 mod lexer;
 mod parser;
 mod source;
+mod stack;
 mod statement;
 mod token;
 mod token_stream;
@@ -41,7 +39,7 @@ fn run_prompt() {
     let mut stdin = io::stdin().lock();
     let mut stdout = io::stdout().lock();
 
-    let environment = Rc::new(RefCell::new(Environment::new(None)));
+    let mut stack = Stack::new();
     let mut heap = ManagedHeap::new();
 
     loop {
@@ -51,23 +49,23 @@ fn run_prompt() {
         let _ = stdout.flush();
         let _ = stdin.read_line(&mut line);
 
-        run(line.trim(), Rc::clone(&environment), &mut heap);
+        run(line.trim(), &mut stack, &mut heap);
     }
 }
 
 fn run_file(filename: &str) {
     let contents = fs::read_to_string(filename);
 
-    let environment = Rc::new(RefCell::new(Environment::new(None)));
+    let mut stack = Stack::new();
     let mut heap = ManagedHeap::new();
 
     match contents {
-        Ok(source) => run(&source, environment, &mut heap),
+        Ok(source) => run(&source, &mut stack, &mut heap),
         Err(error) => eprintln!("{}", error),
     }
 }
 
-fn run(source: &str, environment: Rc<RefCell<Environment>>, heap: &mut ManagedHeap) {
+fn run(source: &str, stack: &mut Stack, heap: &mut ManagedHeap) {
     let source = Source::new(source);
 
     let lexer = Lexer::new(source);
@@ -97,7 +95,7 @@ fn run(source: &str, environment: Rc<RefCell<Environment>>, heap: &mut ManagedHe
                         parameters: _,
                         block: _,
                     } => {
-                        if let Err(error) = statement.execute(Rc::clone(&environment), heap) {
+                        if let Err(error) = statement.execute(stack, heap) {
                             eprintln!("{}", error);
                             return;
                         }
@@ -107,7 +105,7 @@ fn run(source: &str, environment: Rc<RefCell<Environment>>, heap: &mut ManagedHe
             }
 
             for statement in non_definitions {
-                match statement.execute(Rc::clone(&environment), heap) {
+                match statement.execute(stack, heap) {
                     Ok(control) => match control {
                         ControlFlow::Continue => continue,
                         ControlFlow::Break(_) => return,

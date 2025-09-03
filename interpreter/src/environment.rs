@@ -22,14 +22,16 @@ pub enum EnvironmentError {
 /// Note that this is not the same thing as the stack: the stack has a frame for each subroutine call, whereas the environment has a new scope for each block scope (e.g. if-statements, while-loops).
 pub struct Environment {
     /// The parent scope.
-    parent: Option<Rc<RefCell<Environment>>>,
+    parent: Option<MutEnvironment>,
     /// The current scope.
     scope: HashMap<String, Option<Value>>,
 }
 
+pub type MutEnvironment = Rc<RefCell<Environment>>;
+
 impl Environment {
     /// Creates a new [Environment].
-    pub fn new(parent: Option<Rc<RefCell<Environment>>>) -> Self {
+    pub fn new(parent: Option<MutEnvironment>) -> Self {
         let mut scope = HashMap::new();
 
         if parent.is_none() {
@@ -97,7 +99,7 @@ impl Environment {
     /// Gets the outermost scope.
     ///
     /// Accepts an Rc<RefCell> to itself.
-    pub fn global(&self, self_reference: Rc<RefCell<Environment>>) -> Rc<RefCell<Environment>> {
+    pub fn global(&self, self_reference: MutEnvironment) -> MutEnvironment {
         if let Some(parent) = &self.parent {
             parent.borrow().global(Rc::clone(parent))
         } else {
@@ -119,5 +121,12 @@ impl Environment {
         }
 
         roots
+    }
+
+    pub fn parent(&self) -> Option<MutEnvironment> {
+        match &self.parent {
+            Some(parent) => Some(Rc::clone(&parent)),
+            None => None,
+        }
     }
 }
