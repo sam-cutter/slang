@@ -100,6 +100,7 @@ impl Lexer {
                 '-' => Ok(self.add_token(TokenData::Minus)),
                 '*' => Ok(self.add_token(TokenData::Star)),
                 '/' => self.handle_slash(),
+                '^' => Ok(self.add_token(TokenData::Exponent)),
 
                 // Logical and bitwise operators
                 '!' => Ok(self.handle_bang()),

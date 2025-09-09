@@ -414,7 +414,7 @@ impl Parser {
         {
             Ok(Expression::Unary {
                 operator: operator,
-                operand: Box::new(self.call()?),
+                operand: Box::new(self.exponent()?),
             })
         } else if let Some((operator, location)) = self.tokens.binary_operator(&[
             BinaryOperator::Add,
@@ -436,8 +436,22 @@ impl Parser {
                 operator: operator,
             })
         } else {
-            self.call()
+            self.exponent()
         }
+    }
+
+    fn exponent(&mut self) -> Result<Expression, ParserError> {
+        let mut expression = self.call()?;
+
+        if self.tokens.matches(&[TokenKind::Exponent]) {
+            expression = Expression::Binary {
+                left: Box::new(expression),
+                operator: BinaryOperator::Exponent,
+                right: Box::new(self.exponent()?),
+            }
+        }
+
+        Ok(expression)
     }
 
     fn call(&mut self) -> Result<Expression, ParserError> {

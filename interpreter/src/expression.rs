@@ -431,6 +431,26 @@ impl Expression {
                 })?,
             },
 
+            BinaryOperator::Exponent => match Self::binary_operands(left, right, stack, heap)? {
+                (Value::Integer(left), Value::Integer(right)) => {
+                    if right < 0 {
+                        if left == 0 {
+                            return Err(EvaluationError::DivisionByZero);
+                        }
+
+                        Value::Integer(0)
+                    } else {
+                        Value::Integer(left.pow(right as u32))
+                    }
+                }
+                (Value::Float(left), Value::Float(right)) => Value::Float(left.powf(right)),
+                (left, right) => Err(EvaluationError::InvalidBinaryTypes {
+                    left: left.slang_type(),
+                    operator: BinaryOperator::Exponent,
+                    right: Some(right.slang_type()),
+                })?,
+            },
+
             BinaryOperator::EqualTo => match Self::binary_operands(left, right, stack, heap)? {
                 (Value::String(left), Value::String(right)) => Value::Boolean(left == right),
                 (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
@@ -697,6 +717,7 @@ pub enum BinaryOperator {
     Subtract,
     Multiply,
     Divide,
+    Exponent,
 
     // Logical operators
     EqualTo,
@@ -721,6 +742,7 @@ impl BinaryOperator {
             Self::Subtract => "-",
             Self::Multiply => "*",
             Self::Divide => "/",
+            Self::Exponent => "^",
 
             Self::EqualTo => "==",
             Self::NotEqualTo => "!=",

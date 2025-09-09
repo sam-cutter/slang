@@ -69,6 +69,8 @@ pub enum TokenData {
     Star,
     /// The `/` character.
     Slash,
+    /// The `^` character.
+    Exponent,
 
     // Logical and bitwise operators
     /// The `!` character.
@@ -146,6 +148,7 @@ impl TokenData {
             TokenData::Minus => TokenKind::Minus,
             TokenData::Star => TokenKind::Star,
             TokenData::Slash => TokenKind::Slash,
+            TokenData::Exponent => TokenKind::Exponent,
 
             // Logical and bitwise operators
             TokenData::Bang => TokenKind::Bang,
@@ -212,6 +215,8 @@ pub enum TokenKind {
     Star,
     /// The `/` character.
     Slash,
+    /// The `^` character.
+    Exponent,
 
     // Logical and bitwise operators
     /// The `!` character.

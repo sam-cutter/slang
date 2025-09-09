@@ -48,9 +48,11 @@ term -> factor (("+" | "-") factor)*
 
 factor -> unary (("*" | "/") unary)*
 
-unary -> ("!" | "-")? call
+unary -> ("!" | "-")? exponent
 
-call -> primary ( ("(" (expression ("," expression)*)? ")") | "." IDENTIFIER )*
+exponent -> call ("^" exponent)?
+
+call -> primary ( ("(" (expression ("," expression)*)? ")") | ("." IDENTIFIER) )*
 
 primary -> "(" expression ")"
          | STRING
