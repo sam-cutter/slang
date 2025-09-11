@@ -701,7 +701,7 @@ impl Expression {
                     ControlFlow::Continue => None,
                 });
 
-                // TODO: exiting the block should clean up reference counting, but double check
+                // TODO: exiting the block will clean up values which were created inside the function, but arguments still need to be decremented
 
                 stack.pop();
 
@@ -714,7 +714,6 @@ impl Expression {
                         Ok(None)
                     }
                     [expression] => {
-                        // TODO: figure out how to do this without cloning
                         println!("{}", expression.clone().evaluate_not_nothing(stack, heap)?);
                         Ok(None)
                     }

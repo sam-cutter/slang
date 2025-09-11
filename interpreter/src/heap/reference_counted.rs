@@ -24,7 +24,6 @@ impl ReferenceCountedHeap {
         let pointer = Pointer::new(RefCell::new(heap_object));
         self.heap.push(Rc::clone(&pointer));
         self.increment(Rc::clone(&pointer));
-        // TODO: check correct increment
 
         pointer
     }

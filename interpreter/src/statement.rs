@@ -53,7 +53,7 @@ impl Statement {
                     None => None,
                 };
 
-                // TODO: increment count if necessary
+                // TODO: increment count and decrement count of previous if there was one
                 stack.top().borrow_mut().define(identifier, initialiser);
                 Ok(ControlFlow::Continue)
             }
