@@ -137,9 +137,15 @@ impl Statement {
                     }
                 }
 
-                stack.exit_scope();
+                if let ManagedHeap::ReferenceCounted(heap) = heap {
+                    for value in stack.top().borrow().values() {
+                        if let Value::ObjectReference(pointer) = value {
+                            heap.decrement(pointer);
+                        }
+                    }
+                }
 
-                // TODO: decrement reference counts
+                stack.exit_scope();
 
                 if let ManagedHeap::GarbageCollected(heap) = heap {
                     heap.manage(&stack.roots());

@@ -24,6 +24,7 @@ impl ReferenceCountedHeap {
         let pointer = Pointer::new(RefCell::new(heap_object));
         self.heap.push(Rc::clone(&pointer));
         self.increment(Rc::clone(&pointer));
+        // TODO: check correct increment
 
         pointer
     }
@@ -32,7 +33,7 @@ impl ReferenceCountedHeap {
         object.borrow_mut().reference_count += 1;
 
         for value in object.borrow().data.values() {
-            if let Value::Object(pointer) = value {
+            if let Value::ObjectReference(pointer) = value {
                 self.increment(Rc::clone(&pointer));
             }
         }
@@ -46,7 +47,7 @@ impl ReferenceCountedHeap {
         object.borrow_mut().reference_count -= 1;
 
         for value in object.borrow().data.values() {
-            if let Value::Object(pointer) = value {
+            if let Value::ObjectReference(pointer) = value {
                 self.decrement(Rc::clone(pointer));
             }
         }

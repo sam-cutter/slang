@@ -115,7 +115,7 @@ impl Environment {
         let mut roots = Vec::new();
 
         for value in self.scope.values() {
-            if let Some(Value::Object(pointer)) = value {
+            if let Some(Value::ObjectReference(pointer)) = value {
                 roots.push(pointer.clone());
             }
         }
@@ -132,5 +132,12 @@ impl Environment {
             Some(parent) => Some(Rc::clone(&parent)),
             None => None,
         }
+    }
+
+    pub fn values(&self) -> Vec<Value> {
+        self.scope
+            .iter()
+            .filter_map(|(_, value)| value.clone())
+            .collect()
     }
 }

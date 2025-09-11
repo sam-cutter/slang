@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::{heap::Pointer, statement::Statement};
+use crate::{
+    heap::{Object, Pointer},
+    statement::Statement,
+};
 
 #[derive(Clone)]
 pub enum NativeFunction {
@@ -24,7 +27,8 @@ pub enum Value {
     Integer(i32),
     Boolean(bool),
     Function(Function),
-    Object(Pointer),
+    ObjectReference(Pointer),
+    Object(Object),
 }
 
 impl Display for Value {
@@ -41,18 +45,19 @@ impl Display for Value {
                     block: _,
                 } => write!(f, "<function with {} named parameters>", parameters.len()),
             },
-            Self::Object(pointer) => {
+            Self::Object(fields) => {
                 write!(
                     f,
                     "{{ {} }}",
-                    pointer
-                        .borrow()
-                        .data
+                    fields
                         .iter()
                         .map(|(identifier, _expression)| format!("{}", identifier))
                         .collect::<Vec<String>>()
                         .join(", ")
                 )
+            }
+            Self::ObjectReference(_) => {
+                write!(f, "<object reference>")
             }
         }
     }
@@ -67,6 +72,7 @@ impl Value {
             Self::Boolean(_) => Type::Boolean,
             Self::Function(_) => Type::Function,
             Self::Object(_) => Type::Object,
+            Self::ObjectReference(_) => Type::Object,
         }
     }
 }

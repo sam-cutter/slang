@@ -265,17 +265,36 @@ impl Expression {
             Self::Assignment { identifier, value } => {
                 let next = value.evaluate(stack, heap)?;
 
+                let next = match next {
+                    Some(Value::Object(data)) => Some(Value::ObjectReference(heap.allocate(data))),
+                    Some(Value::ObjectReference(ref pointer)) => {
+                        if let ManagedHeap::ReferenceCounted(heap) = heap {
+                            heap.increment(Pointer::clone(pointer));
+                        }
+
+                        next
+                    }
+                    _ => next,
+                };
+
+                /*
+                - if next is an Object, then allocate data on the heap and place the returned pointer on the stack
+                - if next is an ObjectReference, then place the pointer on the stack (and increment reference count)
+                - if next is anything else, just place it directly on the stack
+
+                - previous cannot be an Object
+                - if previous is an ObjectReference, then decrement it
+
+                */
+
                 let previous = stack.top().borrow_mut().assign(identifier, next.clone())?;
 
-                if let ManagedHeap::ReferenceCounted(heap) = heap {
-                    if let Some(Value::Object(pointer)) = previous {
-                        heap.decrement(pointer);
-                    }
-
-                    // TODO: figure out whether I actually need to increment this or not
-                    if let Some(Value::Object(pointer)) = &next {
-                        heap.increment(Pointer::clone(pointer));
-                    }
+                if let (
+                    ManagedHeap::ReferenceCounted(heap),
+                    Some(Value::ObjectReference(pointer)),
+                ) = (heap, previous)
+                {
+                    heap.decrement(pointer);
                 }
 
                 Ok(next)
@@ -288,7 +307,7 @@ impl Expression {
             Self::Variable { identifier } => Ok(Some(stack.top().borrow().get(&identifier)?)),
 
             Self::GetField { object, field } => match object.evaluate_not_nothing(stack, heap)? {
-                Value::Object(pointer) => {
+                Value::ObjectReference(pointer) => {
                     if let Some(value) = pointer.borrow().data.get(&field).cloned() {
                         Ok(Some(value))
                     } else {
@@ -305,22 +324,31 @@ impl Expression {
                 field,
                 value,
             } => match object.evaluate_not_nothing(stack, heap)? {
-                Value::Object(pointer) => {
+                Value::ObjectReference(pointer) => {
                     let next = value.evaluate_not_nothing(stack, heap)?;
+
+                    let next = match next {
+                        Value::Object(data) => Value::ObjectReference(heap.allocate(data)),
+                        Value::ObjectReference(ref pointer) => {
+                            if let ManagedHeap::ReferenceCounted(heap) = heap {
+                                heap.increment(Pointer::clone(pointer));
+                            }
+
+                            next
+                        }
+                        _ => next,
+                    };
 
                     let fields = &mut pointer.borrow_mut().data;
 
                     let previous = fields.insert(field, next.clone());
 
-                    if let ManagedHeap::ReferenceCounted(heap) = heap {
-                        if let Some(Value::Object(pointer)) = previous {
-                            heap.decrement(pointer);
-                        }
-
-                        // TODO: figure out whether I actually need to increment this or not
-                        if let Value::Object(pointer) = next {
-                            heap.increment(pointer);
-                        }
+                    if let (
+                        ManagedHeap::ReferenceCounted(heap),
+                        Some(Value::ObjectReference(pointer)),
+                    ) = (heap, previous)
+                    {
+                        heap.decrement(pointer);
                     }
 
                     Ok(None)
@@ -334,10 +362,15 @@ impl Expression {
                 let mut fields = HashMap::new();
 
                 for (identifier, expression) in unevaluated_fields.into_iter() {
+                    /* We evaluate the expression, and if it is an Object, then the Object itself will be inserted into fields,
+                    but if it is an ObjectReference then the pointer will be inserted into fields. Note that that the reference count
+                    is not incremented, but this is correct, as the Object being evaluated has not yet been assigned to anything, so its children
+                    should not have their reference counts incremented.
+                    */
                     fields.insert(identifier, expression.evaluate_not_nothing(stack, heap)?);
                 }
 
-                Ok(Some(Value::Object(heap.allocate(fields))))
+                Ok(Some(Value::Object(fields)))
             }
         }
     }
@@ -636,6 +669,7 @@ impl Expression {
                     .filter_map(
                         |argument| match argument.evaluate_not_nothing(stack, heap) {
                             Ok(value) => Some(value),
+                            // TODO: why is this error being hidden?
                             Err(_) => None,
                         },
                     )
@@ -643,20 +677,31 @@ impl Expression {
 
                 let call_scope = stack.push();
 
-                // TODO: increment counts if necessary
-
                 parameters.into_iter().zip(evaluated_arguments).for_each(
                     |(parameter, argument)| {
+                        let argument = match argument {
+                            Value::Object(data) => Value::ObjectReference(heap.allocate(data)),
+                            Value::ObjectReference(ref pointer) => {
+                                if let ManagedHeap::ReferenceCounted(heap) = heap {
+                                    heap.increment(Pointer::clone(pointer));
+                                }
+
+                                argument
+                            }
+                            _ => argument,
+                        };
+
                         call_scope.borrow_mut().define(parameter, Some(argument))
                     },
                 );
 
+                // TODO: consider how return values interact with memory management
                 let return_value = block.execute(stack, heap).map(|control| match control {
                     ControlFlow::Break(value) => value,
                     ControlFlow::Continue => None,
                 });
 
-                // TODO: decrement all variables which went in the previous call frame
+                // TODO: exiting the block should clean up reference counting, but double check
 
                 stack.pop();
 

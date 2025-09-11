@@ -44,7 +44,7 @@ impl GarbageCollectedHeap {
         root.marked = true;
 
         for value in root.data.values() {
-            if let Value::Object(pointer) = value {
+            if let Value::ObjectReference(pointer) = value {
                 self.traverse(Rc::clone(&pointer));
             }
         }
