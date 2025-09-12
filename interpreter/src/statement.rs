@@ -1,6 +1,6 @@
 use crate::{
     expression::{EvaluationError, Expression},
-    heap::ManagedHeap,
+    heap::{ManagedHeap, Pointer},
     stack::Stack,
     value::{Function, Value},
 };
@@ -53,7 +53,24 @@ impl Statement {
                     None => None,
                 };
 
-                // TODO: increment count and decrement count of previous if there was one
+                if let (Ok(previous), ManagedHeap::ReferenceCounted(heap)) =
+                    (stack.top().borrow().get(&identifier), heap)
+                {
+                    heap.conditionally_decrement(previous);
+                }
+
+                let initialiser = match initialiser {
+                    Some(Value::Object(data)) => Some(Value::ObjectReference(heap.allocate(data))),
+                    Some(Value::ObjectReference(ref pointer)) => {
+                        if let ManagedHeap::ReferenceCounted(heap) = heap {
+                            heap.increment(Pointer::clone(pointer));
+                        }
+
+                        initialiser
+                    }
+                    _ => initialiser,
+                };
+
                 stack.top().borrow_mut().define(identifier, initialiser);
                 Ok(ControlFlow::Continue)
             }
@@ -139,9 +156,7 @@ impl Statement {
 
                 if let ManagedHeap::ReferenceCounted(heap) = heap {
                     for value in stack.top().borrow().values() {
-                        if let Value::ObjectReference(pointer) = value {
-                            heap.decrement(pointer);
-                        }
+                        heap.conditionally_decrement(value);
                     }
                 }
 

@@ -289,12 +289,8 @@ impl Expression {
 
                 let previous = stack.top().borrow_mut().assign(identifier, next.clone())?;
 
-                if let (
-                    ManagedHeap::ReferenceCounted(heap),
-                    Some(Value::ObjectReference(pointer)),
-                ) = (heap, previous)
-                {
-                    heap.decrement(pointer);
+                if let (Some(previous), ManagedHeap::ReferenceCounted(heap)) = (previous, heap) {
+                    heap.conditionally_decrement(previous);
                 }
 
                 Ok(next)
@@ -343,12 +339,9 @@ impl Expression {
 
                     let previous = fields.insert(field, next.clone());
 
-                    if let (
-                        ManagedHeap::ReferenceCounted(heap),
-                        Some(Value::ObjectReference(pointer)),
-                    ) = (heap, previous)
+                    if let (ManagedHeap::ReferenceCounted(heap), Some(previous)) = (heap, previous)
                     {
-                        heap.decrement(pointer);
+                        heap.conditionally_decrement(previous);
                     }
 
                     Ok(None)
@@ -677,8 +670,10 @@ impl Expression {
 
                 let call_scope = stack.push();
 
-                parameters.into_iter().zip(evaluated_arguments).for_each(
-                    |(parameter, argument)| {
+                parameters
+                    .into_iter()
+                    .zip(evaluated_arguments.clone())
+                    .for_each(|(parameter, argument)| {
                         let argument = match argument {
                             Value::Object(data) => Value::ObjectReference(heap.allocate(data)),
                             Value::ObjectReference(ref pointer) => {
@@ -692,8 +687,7 @@ impl Expression {
                         };
 
                         call_scope.borrow_mut().define(parameter, Some(argument))
-                    },
-                );
+                    });
 
                 // TODO: consider how return values interact with memory management
                 let return_value = block.execute(stack, heap).map(|control| match control {
@@ -701,7 +695,11 @@ impl Expression {
                     ControlFlow::Continue => None,
                 });
 
-                // TODO: exiting the block will clean up values which were created inside the function, but arguments still need to be decremented
+                if let ManagedHeap::ReferenceCounted(heap) = heap {
+                    for value in evaluated_arguments {
+                        heap.conditionally_decrement(value);
+                    }
+                }
 
                 stack.pop();
 

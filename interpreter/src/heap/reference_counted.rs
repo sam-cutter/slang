@@ -54,4 +54,18 @@ impl ReferenceCountedHeap {
         self.heap
             .retain(|object| object.borrow().reference_count > 0);
     }
+
+    pub fn conditionally_decrement(&mut self, value: Value) {
+        match value {
+            Value::ObjectReference(pointer) => self.decrement(pointer),
+            Value::Object(fields) => {
+                for value in fields.values() {
+                    if let Value::ObjectReference(pointer) = value {
+                        self.decrement(Pointer::clone(pointer));
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
 }
