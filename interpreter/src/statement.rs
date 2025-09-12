@@ -53,11 +53,7 @@ impl Statement {
                     None => None,
                 };
 
-                if let (Ok(previous), ManagedHeap::ReferenceCounted(heap)) =
-                    (stack.top().borrow().get(&identifier), heap)
-                {
-                    heap.conditionally_decrement(previous);
-                }
+                let previous = stack.top().borrow().get(&identifier);
 
                 let initialiser = match initialiser {
                     Some(Value::Object(data)) => Some(Value::ObjectReference(heap.allocate(data))),
@@ -70,6 +66,10 @@ impl Statement {
                     }
                     _ => initialiser,
                 };
+
+                if let (Ok(previous), ManagedHeap::ReferenceCounted(heap)) = (previous, heap) {
+                    heap.conditionally_decrement(previous);
+                }
 
                 stack.top().borrow_mut().define(identifier, initialiser);
                 Ok(ControlFlow::Continue)
