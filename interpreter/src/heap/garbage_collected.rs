@@ -15,6 +15,14 @@ impl GarbageCollectedHeap {
     }
 
     pub fn allocate(&mut self, data: Object) -> Pointer {
+        let data = data
+            .into_iter()
+            .map(|(key, value)| match value {
+                Value::Object(object) => (key, Value::ObjectReference(self.allocate(object))),
+                value => (key, value),
+            })
+            .collect();
+
         let heap_object = HeapObject {
             data,
             marked: false,
