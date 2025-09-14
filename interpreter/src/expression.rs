@@ -310,6 +310,13 @@ impl Expression {
                         Err(EvaluationError::UndefinedField(field))
                     }
                 }
+                Value::Object(fields) => {
+                    if let Some(value) = fields.get(&field).cloned() {
+                        Ok(Some(value))
+                    } else {
+                        Err(EvaluationError::UndefinedField(field))
+                    }
+                }
                 attempt => Err(EvaluationError::AttemptToAccessNonObject {
                     attempt: attempt.slang_type(),
                 }),
@@ -335,9 +342,7 @@ impl Expression {
                         _ => next,
                     };
 
-                    let fields = &mut pointer.borrow_mut().data;
-
-                    let previous = fields.insert(field, next.clone());
+                    let previous = pointer.borrow_mut().data.insert(field, next.clone());
 
                     if let (ManagedHeap::ReferenceCounted(heap), Some(previous)) = (heap, previous)
                     {
@@ -661,7 +666,19 @@ impl Expression {
                     .into_iter()
                     .filter_map(
                         |argument| match argument.evaluate_not_nothing(stack, heap) {
-                            Ok(value) => Some(value),
+                            Ok(value) => match value {
+                                Value::Object(data) => {
+                                    Some(Value::ObjectReference(heap.allocate(data)))
+                                }
+                                Value::ObjectReference(ref pointer) => {
+                                    if let ManagedHeap::ReferenceCounted(heap) = heap {
+                                        heap.increment(Pointer::clone(pointer));
+                                    }
+
+                                    Some(value)
+                                }
+                                _ => Some(value),
+                            },
                             // TODO: why is this error being hidden?
                             Err(_) => None,
                         },
@@ -674,18 +691,6 @@ impl Expression {
                     .into_iter()
                     .zip(evaluated_arguments.clone())
                     .for_each(|(parameter, argument)| {
-                        let argument = match argument {
-                            Value::Object(data) => Value::ObjectReference(heap.allocate(data)),
-                            Value::ObjectReference(ref pointer) => {
-                                if let ManagedHeap::ReferenceCounted(heap) = heap {
-                                    heap.increment(Pointer::clone(pointer));
-                                }
-
-                                argument
-                            }
-                            _ => argument,
-                        };
-
                         call_scope.borrow_mut().define(parameter, Some(argument))
                     });
 
