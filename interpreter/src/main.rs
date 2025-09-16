@@ -1,6 +1,7 @@
 use std::{
     env, fs,
     io::{self, BufRead, Write},
+    time::Instant,
 };
 
 use heap::{
@@ -68,10 +69,19 @@ fn run_file(filename: &str, heap: ManagedHeap) {
     let mut stack = Stack::new();
     let mut heap = heap;
 
+    let start = Instant::now();
+
+    println!("--- BEGINNING EXECUTION ---");
+
     match contents {
         Ok(source) => run(&source, &mut stack, &mut heap),
         Err(error) => eprintln!("{}", error),
     }
+
+    let duration = start.elapsed().as_secs_f64();
+
+    println!("--- EXECUTION COMPLETE ---");
+    println!("Execution time: {} seconds", duration);
 }
 
 fn run(source: &str, stack: &mut Stack, heap: &mut ManagedHeap) {
