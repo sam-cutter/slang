@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    fs,
+    time::{Duration, Instant},
+};
 
 pub struct Logger {
     start: Instant,
@@ -31,6 +34,29 @@ impl Logger {
             stack_size,
             interpreter_memory_usage,
         });
+    }
+
+    pub fn write_to_csv(self, filename: &str) {
+        let mut contents = String::from(
+            "elapsed,heap_objects_count,stack_frames_count,heap_size,stack_size,interpreter_memory_usage\n",
+        );
+
+        for entry in self.entries {
+            contents.push_str(
+                format!(
+                    "{},{},{},{},{},{}\n",
+                    entry.elapsed.as_secs_f64(),
+                    entry.heap_objects_count,
+                    entry.stack_frames_count,
+                    entry.heap_size,
+                    entry.stack_size,
+                    entry.interpreter_memory_usage
+                )
+                .as_str(),
+            );
+        }
+
+        let _ = fs::write(filename, contents);
     }
 }
 

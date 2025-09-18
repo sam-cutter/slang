@@ -74,7 +74,11 @@ fn run_file(filename: &str, heap: ManagedHeap) {
     let mut logger = Logger::new();
 
     match contents {
-        Ok(source) => run(&source, &mut stack, &mut heap, &mut logger),
+        Ok(source) => {
+            run(&source, &mut stack, &mut heap, &mut logger);
+            // TODO: choose a proper file name
+            logger.write_to_csv("test.csv");
+        }
         Err(error) => eprintln!("{}", error),
     }
 }

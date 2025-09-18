@@ -77,5 +77,7 @@ impl Stack {
         self.stack.len()
     }
 
-    pub fn size(&self) -> usize {}
+    pub fn size(&self) -> usize {
+        self.stack.iter().map(|frame| frame.borrow().size()).sum()
+    }
 }
