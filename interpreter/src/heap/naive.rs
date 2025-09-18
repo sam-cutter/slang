@@ -34,4 +34,10 @@ impl NaiveHeap {
 
         pointer
     }
+
+    pub fn objects_count(&self) -> usize {
+        self.heap.len()
+    }
+
+    pub fn size(&self) -> usize {}
 }

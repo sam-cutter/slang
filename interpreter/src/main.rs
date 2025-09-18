@@ -1,7 +1,6 @@
 use std::{
     env, fs,
     io::{self, BufRead, Write},
-    time::Instant,
 };
 
 use heap::{
@@ -15,6 +14,8 @@ use stack::Stack;
 use statement::{ControlFlow, Statement};
 use token_stream::TokenStream;
 
+use crate::stats::Logger;
+
 mod environment;
 mod expression;
 mod heap;
@@ -23,6 +24,7 @@ mod parser;
 mod source;
 mod stack;
 mod statement;
+mod stats;
 mod token;
 mod token_stream;
 mod value;
@@ -51,6 +53,7 @@ fn run_prompt(heap: ManagedHeap) {
 
     let mut stack = Stack::new();
     let mut heap = heap;
+    let mut logger = Logger::new();
 
     loop {
         line.clear();
@@ -59,7 +62,7 @@ fn run_prompt(heap: ManagedHeap) {
         let _ = stdout.flush();
         let _ = stdin.read_line(&mut line);
 
-        run(line.trim(), &mut stack, &mut heap);
+        run(line.trim(), &mut stack, &mut heap, &mut logger);
     }
 }
 
@@ -68,23 +71,15 @@ fn run_file(filename: &str, heap: ManagedHeap) {
 
     let mut stack = Stack::new();
     let mut heap = heap;
-
-    let start = Instant::now();
-
-    println!("--- BEGINNING EXECUTION ---");
+    let mut logger = Logger::new();
 
     match contents {
-        Ok(source) => run(&source, &mut stack, &mut heap),
+        Ok(source) => run(&source, &mut stack, &mut heap, &mut logger),
         Err(error) => eprintln!("{}", error),
     }
-
-    let duration = start.elapsed().as_secs_f64();
-
-    println!("--- EXECUTION COMPLETE ---");
-    println!("Execution time: {} seconds", duration);
 }
 
-fn run(source: &str, stack: &mut Stack, heap: &mut ManagedHeap) {
+fn run(source: &str, stack: &mut Stack, heap: &mut ManagedHeap, logger: &mut Logger) {
     let source = Source::new(source);
 
     let lexer = Lexer::new(source);
@@ -114,7 +109,7 @@ fn run(source: &str, stack: &mut Stack, heap: &mut ManagedHeap) {
                         parameters: _,
                         block: _,
                     } => {
-                        if let Err(error) = statement.execute(stack, heap) {
+                        if let Err(error) = statement.execute(stack, heap, logger) {
                             eprintln!("{}", error);
                             return;
                         }
@@ -124,7 +119,7 @@ fn run(source: &str, stack: &mut Stack, heap: &mut ManagedHeap) {
             }
 
             for statement in non_definitions {
-                match statement.execute(stack, heap) {
+                match statement.execute(stack, heap, logger) {
                     Ok(control) => match control {
                         ControlFlow::Continue => continue,
                         ControlFlow::Break(_) => return,

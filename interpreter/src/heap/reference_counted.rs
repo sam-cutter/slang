@@ -72,4 +72,10 @@ impl ReferenceCountedHeap {
             self.decrement(pointer);
         }
     }
+
+    pub fn objects_count(&self) -> usize {
+        self.heap.len()
+    }
+
+    pub fn size(&self) -> usize {}
 }

@@ -2,6 +2,7 @@ use crate::{
     expression::{EvaluationError, Expression},
     heap::{ManagedHeap, Pointer},
     stack::Stack,
+    stats::Logger,
     value::{Function, Value},
 };
 
@@ -42,14 +43,24 @@ impl Statement {
         self,
         stack: &mut Stack,
         heap: &mut ManagedHeap,
+        logger: &mut Logger,
     ) -> Result<ControlFlow, EvaluationError> {
+        logger.new_entry(
+            heap.objects_count(),
+            stack.frames_count(),
+            heap.size(),
+            stack.size(),
+        );
+
         match self {
             Self::VariableDeclaration {
                 identifier,
                 initialiser,
             } => {
                 let initialiser = match initialiser {
-                    Some(initialiser) => Some(initialiser.evaluate_not_nothing(stack, heap)?),
+                    Some(initialiser) => {
+                        Some(initialiser.evaluate_not_nothing(stack, heap, logger)?)
+                    }
                     None => None,
                 };
 
@@ -90,14 +101,14 @@ impl Statement {
                 execute_if_true,
                 execute_if_false,
             } => {
-                let condition = condition.evaluate_not_nothing(stack, heap)?;
+                let condition = condition.evaluate_not_nothing(stack, heap, logger)?;
 
                 if let Value::Boolean(condition) = condition {
                     if condition {
-                        execute_if_true.execute(stack, heap)
+                        execute_if_true.execute(stack, heap, logger)
                     } else {
                         match execute_if_false {
-                            Some(if_false) => if_false.execute(stack, heap),
+                            Some(if_false) => if_false.execute(stack, heap, logger),
                             None => Ok(ControlFlow::Continue),
                         }
                     }
@@ -109,14 +120,17 @@ impl Statement {
                 }
             }
             Self::WhileLoop { condition, block } => {
-                while match condition.clone().evaluate_not_nothing(stack, heap)? {
+                while match condition
+                    .clone()
+                    .evaluate_not_nothing(stack, heap, logger)?
+                {
                     Value::Boolean(condition) => condition,
                     condition => Err(EvaluationError::NonBooleanControlFlowCondition {
                         condition: condition.slang_type(),
                         control_flow: "while-loop".to_string(),
                     })?,
                 } {
-                    match block.clone().execute(stack, heap)? {
+                    match block.clone().execute(stack, heap, logger)? {
                         ControlFlow::Break(value) => return Ok(ControlFlow::Break(value)),
                         ControlFlow::Continue => continue,
                     }
@@ -136,7 +150,7 @@ impl Statement {
                             parameters: _,
                             block: _,
                         } => {
-                            statement.execute(stack, heap)?;
+                            statement.execute(stack, heap, logger)?;
                         }
                         _ => non_definitions.push(statement),
                     }
@@ -145,7 +159,7 @@ impl Statement {
                 let mut return_value = ControlFlow::Continue;
 
                 for statement in non_definitions {
-                    match statement.execute(stack, heap)? {
+                    match statement.execute(stack, heap, logger)? {
                         ControlFlow::Break(value) => {
                             return_value = ControlFlow::Break(value);
                             break;
@@ -168,12 +182,14 @@ impl Statement {
 
                 Ok(return_value)
             }
-            Self::Expression(expression) => match expression.evaluate(stack, heap) {
+            Self::Expression(expression) => match expression.evaluate(stack, heap, logger) {
                 Ok(_) => Ok(ControlFlow::Continue),
                 Err(error) => Err(error),
             },
             Self::Return(expression) => match expression {
-                Some(expression) => Ok(ControlFlow::Break(expression.evaluate(stack, heap)?)),
+                Some(expression) => Ok(ControlFlow::Break(
+                    expression.evaluate(stack, heap, logger)?,
+                )),
                 None => Ok(ControlFlow::Break(None)),
             },
         }

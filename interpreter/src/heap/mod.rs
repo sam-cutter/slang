@@ -36,4 +36,20 @@ impl ManagedHeap {
             Self::ReferenceCounted(heap) => heap.allocate(data),
         }
     }
+
+    pub fn objects_count(&self) -> usize {
+        match self {
+            Self::GarbageCollected(heap) => heap.objects_count(),
+            Self::Naive(heap) => heap.objects_count(),
+            Self::ReferenceCounted(heap) => heap.objects_count(),
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        match self {
+            Self::GarbageCollected(heap) => heap.size(),
+            Self::Naive(heap) => heap.size(),
+            Self::ReferenceCounted(heap) => heap.size(),
+        }
+    }
 }
