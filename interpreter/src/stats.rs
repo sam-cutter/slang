@@ -36,7 +36,7 @@ impl Logger {
         });
     }
 
-    pub fn write_to_csv(self, filename: &str) {
+    pub fn write_to_csv(self, source_code_filename: &str) {
         let mut contents = String::from(
             "elapsed,heap_objects_count,stack_frames_count,heap_size,stack_size,interpreter_memory_usage\n",
         );
@@ -55,6 +55,8 @@ impl Logger {
                 .as_str(),
             );
         }
+
+        let filename = format!("{}.csv", source_code_filename);
 
         let _ = fs::write(filename, contents);
     }

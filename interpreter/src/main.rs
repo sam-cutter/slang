@@ -76,8 +76,15 @@ fn run_file(filename: &str, heap: ManagedHeap) {
     match contents {
         Ok(source) => {
             run(&source, &mut stack, &mut heap, &mut logger);
-            // TODO: choose a proper file name
-            logger.write_to_csv("test.csv");
+
+            logger.new_entry(
+                heap.objects_count(),
+                stack.frames_count(),
+                heap.size(),
+                stack.size(),
+            );
+
+            logger.write_to_csv(filename);
         }
         Err(error) => eprintln!("{}", error),
     }
