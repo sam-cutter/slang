@@ -712,7 +712,7 @@ impl Expression {
                                 }
                                 _ => Some(value),
                             },
-                            // TODO: why is this error being hidden?
+                            // TODO: this error should not be hidden
                             Err(_) => None,
                         }
                     })
