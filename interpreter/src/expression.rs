@@ -695,28 +695,23 @@ impl Expression {
                     });
                 }
 
-                let evaluated_arguments: Vec<Value> = arguments
-                    .into_iter()
-                    .filter_map(|argument| {
-                        match argument.evaluate_not_nothing(stack, heap, logger) {
-                            Ok(value) => match value {
-                                Value::Object(data) => {
-                                    Some(Value::ObjectReference(heap.allocate(data)))
-                                }
-                                Value::ObjectReference(ref pointer) => {
-                                    if let ManagedHeap::ReferenceCounted(heap) = heap {
-                                        heap.increment(Pointer::clone(pointer));
-                                    }
+                let mut evaluated_arguments = Vec::new();
 
-                                    Some(value)
-                                }
-                                _ => Some(value),
-                            },
-                            // TODO: this error should not be hidden
-                            Err(_) => None,
+                for argument in arguments.into_iter() {
+                    let argument = argument.evaluate_not_nothing(stack, heap, logger)?;
+
+                    evaluated_arguments.push(match argument {
+                        Value::Object(data) => Value::ObjectReference(heap.allocate(data)),
+                        Value::ObjectReference(ref pointer) => {
+                            if let ManagedHeap::ReferenceCounted(heap) = heap {
+                                heap.increment(Pointer::clone(pointer));
+                            }
+
+                            argument
                         }
-                    })
-                    .collect();
+                        _ => argument,
+                    });
+                }
 
                 let call_scope = stack.push();
 
