@@ -723,6 +723,11 @@ impl Expression {
                     });
 
                 // TODO: consider how return values interact with memory management
+                /*
+                I think that inside the block, I need to do memory management, THEN decrement the reference counter
+                if returning an an object reference. This way, if the object reference has its reference count incremented
+                in the calling function, then it is retained, and otherwise, it is dropped.
+                */
                 let return_value =
                     block
                         .execute(stack, heap, logger)

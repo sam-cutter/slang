@@ -168,7 +168,14 @@ impl Statement {
                     }
                 }
 
+                // maybe increment the reference count of the returned value, then it will be decremented again
+
                 if let ManagedHeap::ReferenceCounted(heap) = heap {
+                    // TODO: check this
+                    if let ControlFlow::Break(Some(Value::ObjectReference(value))) = &return_value {
+                        heap.increment(Pointer::clone(value));
+                    }
+
                     for value in stack.top().borrow().values() {
                         heap.conditionally_decrement(value);
                     }
