@@ -723,11 +723,6 @@ impl Expression {
                     });
 
                 // TODO: consider how return values interact with memory management
-                /*
-                I think that inside the block, I need to do memory management, THEN decrement the reference counter
-                if returning an an object reference. This way, if the object reference has its reference count incremented
-                in the calling function, then it is retained, and otherwise, it is dropped.
-                */
                 let return_value =
                     block
                         .execute(stack, heap, logger)
@@ -735,6 +730,20 @@ impl Expression {
                             ControlFlow::Break(value) => value,
                             ControlFlow::Continue => None,
                         });
+
+                // If the return value is an object reference, then I need to allow the object reference to be incremented before I decrement it.
+                // Maybe I could add an extra thing to the stack frame which has objects which need to be decremented once the function exits.
+
+                /*
+                    fu f() {
+                        let x = {}; (rc = 1)
+                        return x; (rc = 2)
+                    } (rc = 1)
+
+                    let a = f(); (rc = 1)
+
+                    f(); (rc = 0)
+                */
 
                 if let ManagedHeap::ReferenceCounted(heap) = heap {
                     for value in evaluated_arguments {
