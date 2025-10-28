@@ -181,7 +181,14 @@ impl Statement {
                 stack.exit_scope(heap);
 
                 if let ManagedHeap::GarbageCollected(heap) = heap {
-                    heap.manage(&stack.roots());
+                    let mut roots = stack.roots();
+
+                    if let ControlFlow::Break(Some(Value::ObjectReference(pointer))) = &return_value
+                    {
+                        roots.push(Pointer::clone(pointer));
+                    }
+
+                    heap.manage(&roots);
                 }
 
                 Ok(return_value)
