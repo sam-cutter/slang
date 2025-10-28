@@ -25,6 +25,8 @@ pub struct Environment {
     parent: Option<MutEnvironment>,
     /// The current scope.
     scope: HashMap<String, Option<Value>>,
+    /// Object references returned from functions.
+    returned_object_references: Vec<Pointer>,
 }
 
 pub type MutEnvironment = Rc<RefCell<Environment>>;
@@ -48,7 +50,13 @@ impl Environment {
             });
         }
 
-        Self { scope, parent }
+        let returned_object_references = Vec::new();
+
+        Self {
+            scope,
+            parent,
+            returned_object_references,
+        }
     }
 
     /// Defines a new target and inserts it into the innermost scope.
@@ -125,6 +133,14 @@ impl Environment {
         }
 
         roots
+    }
+
+    pub fn returned_object_references(&self) -> &Vec<Pointer> {
+        &self.returned_object_references
+    }
+
+    pub fn add_returned_object_reference(&mut self, pointer: Pointer) {
+        self.returned_object_references.push(pointer);
     }
 
     pub fn parent(&self) -> Option<MutEnvironment> {

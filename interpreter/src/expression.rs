@@ -722,7 +722,6 @@ impl Expression {
                         call_scope.borrow_mut().define(parameter, Some(argument))
                     });
 
-                // TODO: consider how return values interact with memory management
                 let return_value =
                     block
                         .execute(stack, heap, logger)
@@ -731,20 +730,6 @@ impl Expression {
                             ControlFlow::Continue => None,
                         });
 
-                // If the return value is an object reference, then I need to allow the object reference to be incremented before I decrement it.
-                // Maybe I could add an extra thing to the stack frame which has objects which need to be decremented once the function exits.
-
-                /*
-                    fu f() {
-                        let x = {}; (rc = 1)
-                        return x; (rc = 2)
-                    } (rc = 1)
-
-                    let a = f(); (rc = 1)
-
-                    f(); (rc = 0)
-                */
-
                 if let ManagedHeap::ReferenceCounted(heap) = heap {
                     for value in evaluated_arguments {
                         heap.conditionally_decrement(value);
@@ -752,6 +737,28 @@ impl Expression {
                 }
 
                 stack.pop();
+
+                /*
+                    fu f() {
+                        let x = {}; (rc = 1)
+                        return x; (rc = 2)
+                    } (rc = 1)
+
+                    {
+                        let a = f(); (rc = 1)
+
+                        f(); (rc = 1)
+                    } (both rc = 0)
+                */
+
+                // At this point, we can't be sure whether the value returned from the function will actually be used.
+                // If the return value is an object reference, then it is important that we keep track of this object reference,
+                // so that it can be decremented when we leave the scope/stack frame. This returned object reference is added to a list
+                // within the scope, and when that scope is exited, its reference count is decremented.
+
+                if let Ok(Some(Value::ObjectReference(pointer))) = &return_value {
+                    stack.add_returned_object_reference(Pointer::clone(pointer));
+                }
 
                 return_value
             }

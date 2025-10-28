@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     environment::{Environment, MutEnvironment},
-    heap::Pointer,
+    heap::{ManagedHeap, Pointer},
 };
 
 pub struct Stack {
@@ -34,8 +34,21 @@ impl Stack {
         }
     }
 
-    pub fn exit_scope(&mut self) {
+    pub fn add_returned_object_reference(&mut self, pointer: Pointer) {
+        self.top()
+            .borrow_mut()
+            .add_returned_object_reference(pointer);
+    }
+
+    pub fn exit_scope(&mut self, heap: &mut ManagedHeap) {
         if let Some(top) = self.stack.last_mut() {
+            // When exiting a scope, ensure that any object references given to use by functions are decremented.
+            if let ManagedHeap::ReferenceCounted(heap) = heap {
+                for pointer in top.borrow().returned_object_references() {
+                    heap.decrement(Pointer::clone(pointer));
+                }
+            }
+
             let parent = if let Some(parent) = top.borrow().parent() {
                 parent
             } else {
