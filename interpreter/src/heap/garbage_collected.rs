@@ -48,9 +48,20 @@ impl GarbageCollectedHeap {
     }
 
     fn traverse(&mut self, root: Pointer) {
-        // TODO: this line panics when I introduce reference cycles.
-        let mut root = root.borrow_mut();
-        root.marked = true;
+        {
+            let root = root.borrow();
+
+            if root.marked {
+                return;
+            }
+        }
+
+        {
+            let mut root = root.borrow_mut();
+            root.marked = true;
+        }
+
+        let root = root.borrow();
 
         for value in root.data.values() {
             if let Value::ObjectReference(pointer) = value {
