@@ -76,11 +76,4 @@ impl ReferenceCountedHeap {
     pub fn objects_count(&self) -> usize {
         self.heap.len()
     }
-
-    pub fn size(&self) -> usize {
-        self.heap
-            .iter()
-            .map(|pointer| size_of_val(&pointer.borrow().data))
-            .sum()
-    }
 }

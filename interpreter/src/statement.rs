@@ -45,12 +45,7 @@ impl Statement {
         heap: &mut ManagedHeap,
         logger: &mut Logger,
     ) -> Result<ControlFlow, EvaluationError> {
-        logger.new_entry(
-            heap.objects_count(),
-            stack.frames_count(),
-            heap.size(),
-            stack.size(),
-        );
+        logger.new_entry(heap.objects_count(), stack.frames_count());
 
         match self {
             Self::VariableDeclaration {

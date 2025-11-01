@@ -156,8 +156,4 @@ impl Environment {
             .filter_map(|(_, value)| value.clone())
             .collect()
     }
-
-    pub fn size(&self) -> usize {
-        size_of_val(&self.scope)
-    }
 }

@@ -89,8 +89,4 @@ impl Stack {
     pub fn frames_count(&self) -> usize {
         self.stack.len()
     }
-
-    pub fn size(&self) -> usize {
-        self.stack.iter().map(|frame| frame.borrow().size()).sum()
-    }
 }

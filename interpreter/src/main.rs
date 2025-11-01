@@ -77,12 +77,7 @@ fn run_file(filename: &str, heap: ManagedHeap) {
         Ok(source) => {
             run(&source, &mut stack, &mut heap, &mut logger);
 
-            logger.new_entry(
-                heap.objects_count(),
-                stack.frames_count(),
-                heap.size(),
-                stack.size(),
-            );
+            logger.new_entry(heap.objects_count(), stack.frames_count());
 
             logger.write_to_csv(filename);
         }
