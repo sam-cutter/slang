@@ -12,18 +12,20 @@ use crate::{
     value::Value,
 };
 
+/// All errors which can occur while parsing.
 pub enum ParserError {
+    /// When a token was expected but not found.
     ExpectedToken {
         expected: Vec<TokenKind>,
         location: GeneralLocation,
     },
+    /// When a unary expression with an unsupported unary operator is encountered.
     UnsupportedUnaryExpression {
         operator: BinaryOperator,
         location: GeneralLocation,
     },
-    InvalidAssignmentTarget {
-        location: Location,
-    },
+    /// When there is an attempt to assign a value to something which is not assignable.
+    InvalidAssignmentTarget(Location),
 }
 
 impl Display for ParserError {
@@ -44,7 +46,7 @@ impl Display for ParserError {
                     operator.raw(),
                 )
             }
-            Self::InvalidAssignmentTarget { location } => {
+            Self::InvalidAssignmentTarget(location) => {
                 write!(f, "{} Invalid assignment target.", location)
             }
         }
@@ -59,15 +61,20 @@ impl Debug for ParserError {
 
 impl Error for ParserError {}
 
+/// A parser for a specific token stream.
 pub struct Parser {
     tokens: TokenStream,
 }
 
 impl Parser {
+    /// Creates a new parser for a specific token stream.
     pub fn new(tokens: TokenStream) -> Self {
         Self { tokens }
     }
 
+    /// Attempts to parse the token stream. Corresponds to `program` in the grammar.
+    ///
+    /// Consumes the entire token stream. Will attempt to find all errors, while minimising cascading errors.
     pub fn parse(mut self) -> Result<Vec<Statement>, Vec<ParserError>> {
         let mut statements: Vec<Statement> = Vec::new();
         let mut errors: Vec<ParserError> = Vec::new();
@@ -89,6 +96,7 @@ impl Parser {
         }
     }
 
+    /// Consumes tokens until the end of a statement is reached.
     fn synchronize(&mut self) {
         self.tokens.advance();
 
@@ -112,6 +120,7 @@ impl Parser {
         }
     }
 
+    /// Attempts to parse a statement. Corresponds to `statement` in the grammar.
     fn statement(&mut self) -> Result<Statement, ParserError> {
         match self.tokens.peek().map(|token| token.kind()) {
             Some(TokenKind::Let) => self.variable_declaration(),
@@ -124,6 +133,7 @@ impl Parser {
         }
     }
 
+    /// Attempts to parse a variable declaration. Corresponds to `variableDeclaration` in the grammar.
     fn variable_declaration(&mut self) -> Result<Statement, ParserError> {
         self.tokens.consume(TokenKind::Let)?;
 
@@ -143,6 +153,7 @@ impl Parser {
         })
     }
 
+    /// Attempts to parse a function definition. Corresponds to `functionDefinition` in the grammar.
     fn function_definition(&mut self) -> Result<Statement, ParserError> {
         self.tokens.consume(TokenKind::Fu)?;
 
@@ -171,6 +182,7 @@ impl Parser {
         })
     }
 
+    /// Attempts to parse a return statement. Corresponds to `returnStatement` in the grammar.
     fn return_statement(&mut self) -> Result<Statement, ParserError> {
         self.tokens.consume(TokenKind::Return)?;
 
@@ -183,6 +195,7 @@ impl Parser {
         }
     }
 
+    /// Attempts to parse an if-statement. Corresponds to `ifStatement` in the grammar.
     fn if_statement(&mut self) -> Result<Statement, ParserError> {
         self.tokens.consume(TokenKind::If)?;
 
@@ -218,6 +231,7 @@ impl Parser {
         })
     }
 
+    /// Attempts to parse a while-loop. Corresponds to `whileLoop` in the grammar.
     fn while_loop(&mut self) -> Result<Statement, ParserError> {
         self.tokens.consume(TokenKind::While)?;
 
@@ -228,6 +242,7 @@ impl Parser {
         Ok(Statement::WhileLoop { condition, block })
     }
 
+    /// Attempts to parse a block statement. Corresponds to `block` in the grammar.
     fn block(&mut self) -> Result<Statement, ParserError> {
         self.tokens.consume(TokenKind::LeftBrace)?;
 
@@ -246,6 +261,7 @@ impl Parser {
         Ok(Statement::Block { statements })
     }
 
+    /// Attempts to parse an expression statement. Corresponds to `expressionStatement` in the grammar.
     fn expression_statement(&mut self) -> Result<Statement, ParserError> {
         let expression = self.expression()?;
 
@@ -254,10 +270,12 @@ impl Parser {
         Ok(Statement::Expression(expression))
     }
 
+    /// Attempts to parse an expression. Corresponds to `expression` in the grammar.
     fn expression(&mut self) -> Result<Expression, ParserError> {
         self.assignment()
     }
 
+    /// Attempts to parse an assignment. Corresponds to `assignment` in the grammar.
     fn assignment(&mut self) -> Result<Expression, ParserError> {
         let expression = self.ternary()?;
 
@@ -274,15 +292,14 @@ impl Parser {
                     identifier,
                     value: Box::new(value),
                 }),
-                _ => Err(ParserError::InvalidAssignmentTarget {
-                    location: equals.location(),
-                }),
+                _ => Err(ParserError::InvalidAssignmentTarget(equals.location())),
             }
         } else {
             Ok(expression)
         }
     }
 
+    /// Attempts to parse a ternary expression. Corresponds to `ternary` in the grammar.
     fn ternary(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.logical()?;
 
@@ -303,6 +320,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse a logical expression. Corresponds to `logical` in the grammar.
     fn logical(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.equality()?;
 
@@ -320,6 +338,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse an equality expression. Corresponds to `equality` in the grammar.
     fn equality(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.comparison()?;
 
@@ -337,6 +356,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse a comparison expression. Corresponds to `comparison` in the grammar.
     fn comparison(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.bitwise()?;
 
@@ -356,6 +376,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse a bitwise expression. Corresponds to `bitwise` in the grammar.
     fn bitwise(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.term()?;
 
@@ -373,6 +394,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse a term. Corresponds to `term` in the grammar.
     fn term(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.factor()?;
 
@@ -390,6 +412,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse a factor. Corresponds to `factor` in the grammar.
     fn factor(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.unary()?;
 
@@ -407,6 +430,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse a unary expression. Corresponds to `unary` in the grammar.
     fn unary(&mut self) -> Result<Expression, ParserError> {
         if let Some((operator, _)) = self
             .tokens
@@ -440,6 +464,7 @@ impl Parser {
         }
     }
 
+    /// Attempts to parse an exponent expression. Corresponds to `exponent` in the grammar.
     fn exponent(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.call()?;
 
@@ -454,6 +479,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempt to parse a call expression. Corresponds to `call` in the grammar.
     fn call(&mut self) -> Result<Expression, ParserError> {
         let mut expression = self.primary()?;
 
@@ -499,6 +525,7 @@ impl Parser {
         Ok(expression)
     }
 
+    /// Attempts to parse a primary expression. Corresponds to `primary` in the grammar.
     fn primary(&mut self) -> Result<Expression, ParserError> {
         let expected = [
             TokenKind::LeftParenthesis,
