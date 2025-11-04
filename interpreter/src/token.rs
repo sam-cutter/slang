@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// The smallest meaningful unit of the language.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     /// The contained data, including the token type, and any associated data.
     data: TokenData,
@@ -39,7 +39,7 @@ impl Token {
 /// The data contained within a token.
 ///
 /// This is similar to [TokenKind], however contains more information. For example, the [TokenData::Integer] variant has an [i32] field which stores the integer that token represents, however [TokenKind::Integer] has no contained fields, and is simply a flag stating that the token represents an integer.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenData {
     /// The `(` character.
     LeftParenthesis,

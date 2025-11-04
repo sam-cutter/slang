@@ -1,3 +1,5 @@
+//! All code relating to the stream of tokens given to the parser.
+
 use std::collections::VecDeque;
 
 use crate::{
@@ -7,25 +9,30 @@ use crate::{
     token::{Token, TokenData, TokenKind},
 };
 
+/// A wrapper around a queue of tokens.
 pub struct TokenStream {
     tokens: VecDeque<Token>,
 }
 
 impl TokenStream {
+    /// Creates a new token stream from a list of tokens.
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens: tokens.into(),
         }
     }
 
+    /// Returns a reference to the next token in the stream.
     pub fn peek(&self) -> Option<&Token> {
         self.tokens.get(0)
     }
 
+    /// Consumes the next token and returns it.
     pub fn advance(&mut self) -> Option<Token> {
         self.tokens.pop_front()
     }
 
+    /// Consumes and returns the next token only if it matches a target.
     pub fn only_take(&mut self, targets: &[TokenKind]) -> Option<Token> {
         if let Some(next) = self.peek() {
             for target in targets {
@@ -38,6 +45,7 @@ impl TokenStream {
         None
     }
 
+    /// Consumes the next token only if it matches a target. The token is not returned.
     pub fn matches(&mut self, targets: &[TokenKind]) -> bool {
         if let Some(next) = self.peek() {
             for target in targets {
@@ -51,6 +59,7 @@ impl TokenStream {
         false
     }
 
+    /// Consumes the next token only if it is a binary operator and matches a target.
     pub fn binary_operator(
         &mut self,
         targets: &[BinaryOperator],
@@ -71,6 +80,7 @@ impl TokenStream {
         None
     }
 
+    /// Consumes the next token only if it is a unary operator and matches a target.
     pub fn unary_operator(
         &mut self,
         targets: &[UnaryOperator],
@@ -91,16 +101,27 @@ impl TokenStream {
         None
     }
 
+    /// Consumes the next token only if it is an identifier. Will return an error if it is not an identifier.
     pub fn consume_identifier(&mut self) -> Result<String, ParserError> {
-        match self.consume(TokenKind::Identifier) {
-            Ok(token) => match token.data() {
-                TokenData::Identifier(identifier) => Ok(identifier),
-                _ => unreachable!(),
-            },
-            Err(error) => Err(error),
+        let token = self.peek().cloned();
+
+        match token.map(|token| (token.location(), token.data())) {
+            Some((_, TokenData::Identifier(identifier))) => {
+                self.advance();
+                Ok(identifier)
+            }
+            Some((location, _)) => Err(ParserError::ExpectedToken {
+                expected: vec![TokenKind::Identifier],
+                location: GeneralLocation::Location(location),
+            }),
+            None => Err(ParserError::ExpectedToken {
+                expected: vec![TokenKind::Identifier],
+                location: GeneralLocation::EndOfFile,
+            }),
         }
     }
 
+    /// Consumes the next token only if it is of a certain kind. Will return an error if it is not of that kind.
     pub fn consume(&mut self, kind: TokenKind) -> Result<Token, ParserError> {
         if let Some(token) = self.only_take(&[kind]) {
             Ok(token)
@@ -117,6 +138,7 @@ impl TokenStream {
         }
     }
 
+    /// Returns whether all of the tokens have been consumed.
     pub fn at_end(&self) -> bool {
         self.tokens.is_empty()
     }
