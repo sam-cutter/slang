@@ -15,7 +15,7 @@ pub struct Token {
 }
 
 impl Token {
-    /// Creates a new [Token].
+    /// Creates a new Token.
     pub fn new(data: TokenData, location: Location) -> Self {
         Self { data, location }
     }
