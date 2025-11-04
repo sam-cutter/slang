@@ -56,7 +56,7 @@ pub struct Source {
 }
 
 impl Source {
-    /// Creates a new [Source] from a string input.
+    /// Creates a new source from a string input.
     pub fn new(text: &str) -> Self {
         Self {
             text: text.chars().collect(),

@@ -16,9 +16,8 @@ pub enum LexerError {
     UnterminatedString(Location),
     /// A block comment without the enclosing `*/`.
     UnterminatedBlockComment(Location),
-    /// An unexpected character, with an optional expected character.
+    /// An unexpected character. Optionally specify which character was expected.
     UnexpectedCharacter {
-        //
         location: Location,
         character: char,
         expected: Option<char>,
@@ -68,7 +67,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    /// Creates a new [Lexer] for a specific [Source].
+    /// Creates a new lexer for a specific source.
     pub fn new(source: Source) -> Self {
         Self {
             source: source,
@@ -269,7 +268,6 @@ impl Lexer {
         let mut number = String::new();
 
         number.push(first_digit);
-
         while let Some(character) = self.source.peek() {
             if !character.is_ascii_digit() {
                 break;
@@ -307,7 +305,7 @@ impl Lexer {
         }
     }
 
-    /// Called when an alphabetic character is encountered.
+    /// Called when the start of an identifier or keyword is encountered.
     fn handle_word(&mut self, first_character: char) {
         let mut word = String::new();
 
