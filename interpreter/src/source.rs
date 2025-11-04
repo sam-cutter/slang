@@ -6,11 +6,11 @@ use std::fmt::Display;
 #[derive(Clone, Copy, Debug)]
 pub struct Location {
     /// The zero-indexed position of the character.
-    pub index: usize,
+    index: usize,
     /// The line (`>= 1`) which the character appears on.
-    pub line: usize,
+    line: usize,
     /// The column (`>= 1`) which the character appears in.
-    pub column: usize,
+    column: usize,
 }
 
 impl Display for Location {
@@ -30,9 +30,9 @@ impl Location {
     }
 }
 
-/// Can represent either a concrete location, or the end of a source code string.
+/// Can represent either a specific location, or the end of a source code string.
 pub enum GeneralLocation {
-    /// A concrete location in the source code.
+    /// A specific location in the source code.
     Location(Location),
     /// The end of the source code string.
     EndOfFile,
