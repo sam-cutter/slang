@@ -40,6 +40,9 @@ impl Environment {
             [
                 ("print", NativeFunction::Print),
                 ("format", NativeFunction::Format),
+                ("input", NativeFunction::Input),
+                ("int", NativeFunction::Int),
+                ("float", NativeFunction::Float),
             ]
             .into_iter()
             .for_each(|(identifier, function)| {

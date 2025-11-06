@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Debug, Display},
+    io::{self, BufRead},
 };
 
 use crate::{
@@ -59,6 +60,10 @@ pub enum EvaluationError {
         attempt: Type,
     },
     UndefinedField(String),
+    CastingError {
+        from: Value,
+        to: Type,
+    },
 }
 
 impl From<EnvironmentError> for EvaluationError {
@@ -156,6 +161,7 @@ impl Display for EvaluationError {
                     identifier
                 )
             }
+            Self::CastingError { from, to } => write!(f, "Unable to cast from {} to {}", from, to),
         }
     }
 }
@@ -782,6 +788,34 @@ impl Expression {
                         passed: arguments.len(),
                     }),
                 },
+                NativeFunction::Input => match &arguments[..] {
+                    [] => {
+                        let mut line = String::new();
+
+                        // TODO: this doesn't work
+                        let _ = io::stdin().lock().read_line(&mut line);
+
+                        Ok(Some(Value::String(line)))
+                    }
+                    [prompt] => {
+                        print!(
+                            "{}",
+                            prompt.clone().evaluate_not_nothing(stack, heap, logger)?
+                        );
+
+                        let mut line = String::new();
+
+                        // TODO: this doesn't work
+                        let _ = io::stdin().lock().read_line(&mut line);
+
+                        Ok(Some(Value::String(line)))
+                    }
+                    _ => Err(EvaluationError::IncorrectArgumentCount {
+                        expected: 1,
+                        passed: arguments.len(),
+                    }),
+                },
+
                 NativeFunction::Format => {
                     let mut buffer = String::new();
 
@@ -795,10 +829,40 @@ impl Expression {
                     Ok(Some(Value::String(buffer)))
                 }
                 NativeFunction::Int => match &arguments[..] {
-                    [argument] => match argument.evaluate_not_nothing(stack, heap, logger)? {
-                        Value::Integer(argument) => Ok(Some(Value::Integer(argument))),
-                        _ => todo!(),
-                    },
+                    [argument] => {
+                        let argument =
+                            argument.clone().evaluate_not_nothing(stack, heap, logger)?;
+
+                        match argument {
+                            Value::Integer(integer) => Ok(Some(Value::Integer(integer))),
+                            Value::Float(float) => {
+                                if float.round() == float {
+                                    let integer = float as i32;
+
+                                    Ok(Some(Value::Integer(integer)))
+                                } else {
+                                    Err(EvaluationError::CastingError {
+                                        from: argument,
+                                        to: Type::Integer,
+                                    })
+                                }
+                            }
+                            Value::String(ref value) => {
+                                if let Ok(integer) = value.parse() {
+                                    Ok(Some(Value::Integer(integer)))
+                                } else {
+                                    Err(EvaluationError::CastingError {
+                                        from: argument,
+                                        to: Type::Integer,
+                                    })
+                                }
+                            }
+                            _ => Err(EvaluationError::CastingError {
+                                from: argument,
+                                to: Type::Integer,
+                            }),
+                        }
+                    }
                     _ => Err(EvaluationError::IncorrectArgumentCount {
                         expected: 1,
                         passed: arguments.len(),
@@ -806,10 +870,26 @@ impl Expression {
                 },
                 NativeFunction::Float => match &arguments[..] {
                     [argument] => {
-                        if let Value::Integer(argument) =
-                            argument.evaluate_not_nothing(stack, heap, logger)
-                        {
-                            Ok(Some(Value::Integer(argument)))
+                        let argument =
+                            argument.clone().evaluate_not_nothing(stack, heap, logger)?;
+
+                        match argument {
+                            Value::Integer(integer) => Ok(Some(Value::Float(integer as f64))),
+                            Value::Float(float) => Ok(Some(Value::Float(float))),
+                            Value::String(ref value) => {
+                                if let Ok(float) = value.parse() {
+                                    Ok(Some(Value::Float(float)))
+                                } else {
+                                    Err(EvaluationError::CastingError {
+                                        from: argument,
+                                        to: Type::Float,
+                                    })
+                                }
+                            }
+                            _ => Err(EvaluationError::CastingError {
+                                from: argument,
+                                to: Type::Float,
+                            }),
                         }
                     }
                     _ => Err(EvaluationError::IncorrectArgumentCount {
