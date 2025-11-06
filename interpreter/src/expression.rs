@@ -794,6 +794,29 @@ impl Expression {
 
                     Ok(Some(Value::String(buffer)))
                 }
+                NativeFunction::Int => match &arguments[..] {
+                    [argument] => match argument.evaluate_not_nothing(stack, heap, logger)? {
+                        Value::Integer(argument) => Ok(Some(Value::Integer(argument))),
+                        _ => todo!(),
+                    },
+                    _ => Err(EvaluationError::IncorrectArgumentCount {
+                        expected: 1,
+                        passed: arguments.len(),
+                    }),
+                },
+                NativeFunction::Float => match &arguments[..] {
+                    [argument] => {
+                        if let Value::Integer(argument) =
+                            argument.evaluate_not_nothing(stack, heap, logger)
+                        {
+                            Ok(Some(Value::Integer(argument)))
+                        }
+                    }
+                    _ => Err(EvaluationError::IncorrectArgumentCount {
+                        expected: 1,
+                        passed: arguments.len(),
+                    }),
+                },
             },
             other => Err(EvaluationError::AttemptedCallOfNonFunction {
                 attempt: other.slang_type(),

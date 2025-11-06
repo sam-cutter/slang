@@ -9,6 +9,9 @@ use crate::{
 pub enum NativeFunction {
     Print,
     Format,
+    Input,
+    Int,
+    Float,
 }
 
 #[derive(Clone)]
