@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Debug, Display},
-    io::{self, BufRead},
+    io::{self, BufRead, Write},
 };
 
 use crate::{
@@ -792,10 +792,11 @@ impl Expression {
                     [] => {
                         let mut line = String::new();
 
-                        // TODO: this doesn't work
+                        // TODO: this doesn't work in REPL mode
+                        let _ = io::stdout().lock().flush();
                         let _ = io::stdin().lock().read_line(&mut line);
 
-                        Ok(Some(Value::String(line)))
+                        Ok(Some(Value::String(line.trim().to_string())))
                     }
                     [prompt] => {
                         print!(
@@ -805,10 +806,11 @@ impl Expression {
 
                         let mut line = String::new();
 
-                        // TODO: this doesn't work
+                        // TODO: this doesn't work in REPL mode
+                        let _ = io::stdout().lock().flush();
                         let _ = io::stdin().lock().read_line(&mut line);
 
-                        Ok(Some(Value::String(line)))
+                        Ok(Some(Value::String(line.trim().to_string())))
                     }
                     _ => Err(EvaluationError::IncorrectArgumentCount {
                         expected: 1,
