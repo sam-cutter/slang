@@ -453,7 +453,7 @@ impl Parser {
             BinaryOperator::BitwiseAND,
             BinaryOperator::BitwiseOR,
         ]) {
-            let _ = self.primary();
+            let _ = self.exponent();
 
             Err(ParserError::UnsupportedUnaryExpression {
                 location: GeneralLocation::Location(location),

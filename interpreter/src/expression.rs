@@ -803,7 +803,6 @@ impl Expression {
                     [] => {
                         let mut line = String::new();
 
-                        // TODO: this doesn't work in REPL mode
                         let _ = io::stdout().flush();
                         let _ = io::stdin().read_line(&mut line);
 
@@ -817,7 +816,6 @@ impl Expression {
 
                         let mut line = String::new();
 
-                        // TODO: this doesn't work in REPL mode
                         let _ = io::stdout().flush();
                         let _ = io::stdin().read_line(&mut line);
 
