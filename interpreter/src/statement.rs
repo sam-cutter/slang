@@ -11,7 +11,7 @@ pub enum ControlFlow {
     Break(Option<Value>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Statement {
     VariableDeclaration {
         identifier: String,

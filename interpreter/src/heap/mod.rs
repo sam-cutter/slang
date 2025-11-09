@@ -16,6 +16,7 @@ pub type Object = HashMap<String, Value>;
 
 pub type Pointer = Rc<RefCell<HeapObject>>;
 
+#[derive(PartialEq)]
 pub struct HeapObject {
     pub data: Object,
     pub marked: bool,

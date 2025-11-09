@@ -5,7 +5,7 @@ use crate::{
     statement::Statement,
 };
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum NativeFunction {
     Print,
     Format,
@@ -14,7 +14,7 @@ pub enum NativeFunction {
     Float,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Function {
     UserDefined {
         parameters: Vec<String>,
@@ -23,7 +23,7 @@ pub enum Function {
     Native(NativeFunction),
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Value {
     String(String),
     Float(f64),

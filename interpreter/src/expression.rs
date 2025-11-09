@@ -175,7 +175,7 @@ impl Debug for EvaluationError {
 impl Error for EvaluationError {}
 
 /// Represents all possible expressions within the slang programming language.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Expression {
     /// Ternary expressions, in the form `condition ? if_true : if_false`.
     Ternary {
@@ -513,6 +513,10 @@ impl Expression {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left == right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
                     (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left == right),
+                    (Value::Object(left), Value::Object(right)) => Value::Boolean(left == right),
+                    (Value::ObjectReference(left), Value::ObjectReference(right)) => {
+                        Value::Boolean(left == right)
+                    }
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                         left: left.slang_type(),
                         operator,
@@ -527,6 +531,10 @@ impl Expression {
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
                     (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
+                    (Value::Object(left), Value::Object(right)) => Value::Boolean(left != right),
+                    (Value::ObjectReference(left), Value::ObjectReference(right)) => {
+                        Value::Boolean(left != right)
+                    }
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                         left: left.slang_type(),
                         operator,
