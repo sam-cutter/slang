@@ -1,6 +1,6 @@
 use std::{
     env, fs,
-    io::{self, BufRead, Write},
+    io::{self, Write},
 };
 
 use heap::{
@@ -48,8 +48,8 @@ fn main() {
 fn run_prompt(heap: ManagedHeap) {
     let mut line = String::new();
 
-    let mut stdin = io::stdin().lock();
-    let mut stdout = io::stdout().lock();
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
 
     let mut stack = Stack::new();
     let mut heap = heap;

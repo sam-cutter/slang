@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Debug, Display},
-    io::{self, BufRead, Write},
+    io::{self, Write},
 };
 
 use crate::{
@@ -793,8 +793,8 @@ impl Expression {
                         let mut line = String::new();
 
                         // TODO: this doesn't work in REPL mode
-                        let _ = io::stdout().lock().flush();
-                        let _ = io::stdin().lock().read_line(&mut line);
+                        let _ = io::stdout().flush();
+                        let _ = io::stdin().read_line(&mut line);
 
                         Ok(Some(Value::String(line.trim().to_string())))
                     }
@@ -807,8 +807,8 @@ impl Expression {
                         let mut line = String::new();
 
                         // TODO: this doesn't work in REPL mode
-                        let _ = io::stdout().lock().flush();
-                        let _ = io::stdin().lock().read_line(&mut line);
+                        let _ = io::stdout().flush();
+                        let _ = io::stdin().read_line(&mut line);
 
                         Ok(Some(Value::String(line.trim().to_string())))
                     }
