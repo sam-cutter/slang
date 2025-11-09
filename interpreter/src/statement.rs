@@ -1,3 +1,5 @@
+//! Statements within the slang programming language.
+
 use crate::{
     expression::{EvaluationError, Expression},
     heap::{ManagedHeap, Pointer},
@@ -6,39 +8,48 @@ use crate::{
     value::{Function, Value},
 };
 
+/// Used to signal whether a block should be exited early.
 pub enum ControlFlow {
+    /// Signals that execution of the block should continue.
     Continue,
+    /// Signals that execution of the block should terminate, with an optional value returned.
     Break(Option<Value>),
 }
 
+/// Represents a statement.
 #[derive(Clone, PartialEq)]
 pub enum Statement {
+    /// A variable declaration.
     VariableDeclaration {
         identifier: String,
         initialiser: Option<Expression>,
     },
+    /// An if-statement.
     IfStatement {
         condition: Expression,
         execute_if_true: Box<Statement>,
         execute_if_false: Option<Box<Statement>>,
     },
+    /// A function definition.
     FunctionDefinition {
         identifier: String,
         parameters: Vec<String>,
         block: Box<Statement>,
     },
+    /// A return statement.
     Return(Option<Expression>),
     WhileLoop {
         condition: Expression,
         block: Box<Statement>,
     },
-    Block {
-        statements: Vec<Statement>,
-    },
+    /// A block.
+    Block(Vec<Statement>),
+    /// An expression statement.
     Expression(Expression),
 }
 
 impl Statement {
+    /// Executes a statement and inserts a log entry.
     pub fn execute(
         self,
         stack: &mut Stack,
@@ -133,18 +144,14 @@ impl Statement {
 
                 Ok(ControlFlow::Continue)
             }
-            Self::Block { statements } => {
+            Self::Block(statements) => {
                 stack.enter_scope();
 
                 let mut non_definitions = Vec::new();
 
                 for statement in statements {
                     match statement {
-                        Statement::FunctionDefinition {
-                            identifier: _,
-                            parameters: _,
-                            block: _,
-                        } => {
+                        Statement::FunctionDefinition { .. } => {
                             statement.execute(stack, heap, logger)?;
                         }
                         _ => non_definitions.push(statement),

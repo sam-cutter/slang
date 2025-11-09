@@ -1,3 +1,5 @@
+//! The parser for the slang programming language.
+
 use std::{
     error::Error,
     fmt::{Debug, Display},
@@ -258,7 +260,7 @@ impl Parser {
 
         self.tokens.consume(TokenKind::RightBrace)?;
 
-        Ok(Statement::Block { statements })
+        Ok(Statement::Block(statements))
     }
 
     /// Attempts to parse an expression statement. Corresponds to `expressionStatement` in the grammar.
