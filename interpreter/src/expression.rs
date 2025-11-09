@@ -526,7 +526,6 @@ impl Expression {
                     (Value::String(left), Value::String(right)) => Value::Boolean(left != right),
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left != right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
-
                     (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
                         left: left.slang_type(),
@@ -538,6 +537,7 @@ impl Expression {
 
             BinaryOperator::GreaterThan => {
                 match Self::binary_operands(left, right, stack, heap, logger)? {
+                    (Value::String(left), Value::String(right)) => Value::Boolean(left > right),
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left > right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left > right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -550,6 +550,7 @@ impl Expression {
 
             BinaryOperator::GreaterThanOrEqualTo => {
                 match Self::binary_operands(left, right, stack, heap, logger)? {
+                    (Value::String(left), Value::String(right)) => Value::Boolean(left >= right),
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left >= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left >= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -562,6 +563,7 @@ impl Expression {
 
             BinaryOperator::LessThan => {
                 match Self::binary_operands(left, right, stack, heap, logger)? {
+                    (Value::String(left), Value::String(right)) => Value::Boolean(left < right),
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left < right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left < right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
@@ -574,6 +576,7 @@ impl Expression {
 
             BinaryOperator::LessThanOrEqualTo => {
                 match Self::binary_operands(left, right, stack, heap, logger)? {
+                    (Value::String(left), Value::String(right)) => Value::Boolean(left <= right),
                     (Value::Integer(left), Value::Integer(right)) => Value::Boolean(left <= right),
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left <= right),
                     (left, right) => Err(EvaluationError::InvalidBinaryTypes {
