@@ -12,9 +12,8 @@ use parser::Parser;
 use source::Source;
 use stack::Stack;
 use statement::{ControlFlow, Statement};
+use stats::Logger;
 use token_stream::TokenStream;
-
-use crate::stats::Logger;
 
 mod environment;
 mod expression;
