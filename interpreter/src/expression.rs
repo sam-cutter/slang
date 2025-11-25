@@ -514,6 +514,12 @@ impl Expression {
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left == right),
                     (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left == right),
                     (Value::Object(left), Value::Object(right)) => Value::Boolean(left == right),
+                    (Value::Object(left), Value::ObjectReference(right)) => {
+                        Value::Boolean(left == right.borrow().data)
+                    }
+                    (Value::ObjectReference(left), Value::Object(right)) => {
+                        Value::Boolean(left.borrow().data == right)
+                    }
                     (Value::ObjectReference(left), Value::ObjectReference(right)) => {
                         Value::Boolean(left == right)
                     }
@@ -532,6 +538,12 @@ impl Expression {
                     (Value::Float(left), Value::Float(right)) => Value::Boolean(left != right),
                     (Value::Boolean(left), Value::Boolean(right)) => Value::Boolean(left != right),
                     (Value::Object(left), Value::Object(right)) => Value::Boolean(left != right),
+                    (Value::Object(left), Value::ObjectReference(right)) => {
+                        Value::Boolean(left != right.borrow().data)
+                    }
+                    (Value::ObjectReference(left), Value::Object(right)) => {
+                        Value::Boolean(left.borrow().data != right)
+                    }
                     (Value::ObjectReference(left), Value::ObjectReference(right)) => {
                         Value::Boolean(left != right)
                     }
