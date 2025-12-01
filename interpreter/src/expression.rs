@@ -161,7 +161,9 @@ impl Display for EvaluationError {
                     identifier
                 )
             }
-            Self::CastingError { from, to } => write!(f, "Unable to cast from {} to {}", from, to),
+            Self::CastingError { from, to } => {
+                write!(f, "Unable to cast from {:?} to {}.", from, to)
+            }
         }
     }
 }

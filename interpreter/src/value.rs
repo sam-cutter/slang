@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use crate::{
     heap::{Object, Pointer},
@@ -63,6 +63,17 @@ impl Display for Value {
                 write!(f, "<object reference>")
             }
         }
+    }
+}
+
+impl Debug for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::String(value) => write!(f, "\"{}\"", value),
+            _ => write!(f, "{}", self),
+        }?;
+
+        write!(f, " (of type {})", self.slang_type())
     }
 }
 
