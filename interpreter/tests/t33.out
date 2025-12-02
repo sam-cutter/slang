@@ -1,0 +1,58 @@
+> print("Hello, world);
+[line 1, column 7] Unterminated string.
+> 
+> print('Hello, world!');
+[line 1, column 7] Unexpected character: `'`
+[line 1, column 21] Unexpected character: `'`
+> 
+> let a = 5 + 3
+[end of file] Expected one of the following tokens: [Semicolon]
+> 
+> let b = +5;
+[line 1, column 9] The unary `+` operator is not supported.
+> 
+> let 5 = 2;
+[line 1, column 5] Expected one of the following tokens: [Identifier]
+> 
+> print(5 ? 1 : 2);
+[evaluation error] Expected Boolean operand for ternary condition, found Integer.
+> 
+> print(1 + 2.0);
+[evaluation error] The `+` operator is not defined for Integer and Float.
+> 
+> print(-"hello");
+[evaluation error] The unary `-` operator is not defined for String.
+> 
+> print(1/0);
+[evaluation error] Division by zero.
+> 
+> print(name);
+[evaluation error] The identifier `name` is not defined.
+> 
+> let c;
+> print(c);
+[evaluation error] The target `c` has not been initialised.
+> 
+> if 1 { print("Condition was true"); }
+[evaluation error] Expected Boolean if-statement condition, found Integer.
+> 
+> "hello"(2);
+[evaluation error] Attempted to 'call' a value of type String like a function.
+> 
+> fu greet(name) { print(format("Hello, ", name)); }
+> greet("Steve", "Jobs");
+[evaluation error] Expected 1 arguments, but received 2.
+> 
+> let d = print();
+[evaluation error] Attempted to use the return value from a function, however the function returned nothing.
+> 
+> let e = "name".firstChar;
+[evaluation error] Attempted to access a field of a value of type String, like an object.
+> 
+> let f = {a: "A", b: "B"};
+> print(f.c);
+[evaluation error] Attempted to access a non-existent field `c` on an object.
+> 
+> let g = int("five");
+[evaluation error] Unable to cast from "five" (of type String) to Integer.
+> 
