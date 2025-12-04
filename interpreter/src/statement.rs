@@ -56,6 +56,16 @@ impl Statement {
         heap: &mut ManagedHeap,
         logger: &mut Logger,
     ) -> Result<ControlFlow, EvaluationError> {
+        stack.top().borrow_mut().define(
+            String::from("STACK_FRAMES_COUNT"),
+            Some(Value::Integer(stack.frames_count() as i32)),
+        );
+
+        stack.top().borrow_mut().define(
+            String::from("HEAP_OBJECTS_COUNT"),
+            Some(Value::Integer(heap.objects_count() as i32)),
+        );
+
         logger.new_entry(heap.objects_count(), stack.frames_count());
 
         match self {
