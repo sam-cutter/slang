@@ -1,0 +1,7 @@
+start of outer layer - stack frames count: 1
+start of layer1 - stack frames count: 2
+start of layer2 - stack frames count: 3
+layer3 - stack frames count: 4
+end of layer2 - stack frames count: 3
+end of layer1 - stack frames count: 2
+end of outer layer - stack frames count: 1
