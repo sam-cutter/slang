@@ -1,0 +1,11 @@
+Current objects count: 0
+Object x created.
+Current objects count: 1
+Object y created.
+Current objects count: 2
+Cycle created.
+Current objects count: 2
+Subroutine create_cycle exited.
+Current objects count: 2
+Scope exited.
+Current objects count: 2

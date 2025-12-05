@@ -1,0 +1,12 @@
+Current objects count: 0
+Scope entered.
+Current objects count: 0
+Object x created.
+Current objects count: 1
+Scope exited.
+Current objects count: 0
+New stack frame entered
+Object y created.
+Current objects count: 1
+Stack frame exited.
+Current objects count: 0
