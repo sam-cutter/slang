@@ -66,6 +66,11 @@ impl Statement {
             Some(Value::Integer(heap.objects_count() as i32)),
         );
 
+        stack.top().borrow_mut().define(
+            String::from("MEMORY_MANAGEMENT"),
+            Some(Value::String(heap.get_technique_code())),
+        );
+
         logger.new_entry(heap.objects_count(), stack.frames_count());
 
         match self {

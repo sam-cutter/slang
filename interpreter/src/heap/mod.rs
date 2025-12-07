@@ -45,4 +45,13 @@ impl ManagedHeap {
             Self::ReferenceCounted(heap) => heap.objects_count(),
         }
     }
+
+    pub fn get_technique_code(&self) -> String {
+        match self {
+            Self::GarbageCollected(_) => "gc",
+            Self::ReferenceCounted(_) => "rc",
+            Self::Naive(_) => "na",
+        }
+        .to_string()
+    }
 }
