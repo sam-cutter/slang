@@ -1,0 +1,6 @@
+Theme: Zenburn
+Language: Plain text
+Zero opacity background
+No drop shadow
+Width: 400
+No horizontal or vertical padding

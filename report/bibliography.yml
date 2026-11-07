@@ -1,0 +1,26 @@
+dragon:
+  type: book
+  title: "Compilers: Principles, Techniques, and Tools, 2nd edition"
+  author:
+    - Aho, Alfred V.
+    - Ullman, Jeffrey D.
+    - Sethi, Ravi
+    - Lam, Monica S.
+
+crafting:
+  type: book
+  title: "Crafting Interpreters"
+  author: Nystrom, Robert
+  url: "https://craftinginterpreters.com/"
+
+repository:
+  type: repository
+  title: "slang"
+  url: "https://github.com/sam-cutter/slang"
+  author: Cutter, Sam
+
+#testing_video:
+#  type: video
+#  title: "Slang Testing Video"
+#  url: "https://youtu.be/M9fA2mWctko"
+#  author: Cutter, Sam
